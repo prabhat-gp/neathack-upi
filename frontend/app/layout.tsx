@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
-import { Instrument_Serif, Inter, JetBrains_Mono } from 'next/font/google'
+import { Inter, Inter_Tight, JetBrains_Mono, Newsreader } from 'next/font/google'
 import './globals.css'
 
 const sans = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' })
-const serif = Instrument_Serif({ subsets: ['latin'], weight: '400', style: ['normal', 'italic'], variable: '--font-serif', display: 'swap' })
+const display = Inter_Tight({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-display', display: 'swap' })
+const serif = Newsreader({ subsets: ['latin'], weight: ['400', '500'], style: ['normal', 'italic'], variable: '--font-serif', display: 'swap' })
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' })
 
 export const metadata: Metadata = {
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${display.variable} ${serif.variable} ${mono.variable}`}>
       <body className="bg-white font-sans text-slate-900 antialiased">{children}</body>
     </html>
   )

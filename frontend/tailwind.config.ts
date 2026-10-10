@@ -6,11 +6,13 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         serif: ['var(--font-serif)', 'ui-serif', 'Georgia', 'serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
         ink: '#0b1020',
+        night: '#06070d',
       },
     },
   },
