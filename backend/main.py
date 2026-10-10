@@ -12,7 +12,6 @@ from pydantic import BaseModel
 
 import agent_mcp
 import config
-import finance_api
 import ledger
 import mcp_server
 from engine.cases import build_cases, by_id
@@ -35,8 +34,7 @@ async def lifespan(_app):
 app = FastAPI(title="DisputePro", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(sandbox_router)
-app.include_router(agent_mcp.router)
-app.include_router(finance_api.router)  # read-only numbers for cfo.ai's OpenAPI connector  # per-agent tool endpoints the Codex agents connect to
+app.include_router(agent_mcp.router)  # per-agent tool endpoints the Codex agents connect to
 app.mount("/mcp", _mcp_app)  # DisputePro MCP server (cfo.ai, Claude Code)
 
 PACES = {"slow": 1.0, "normal": 0.5, "fast": 0.18, "instant": 0.0}

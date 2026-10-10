@@ -2,12 +2,12 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000
 
 export type AgentNode = 'orchestrator' | 'investigator' | 'policy' | 'resolver'
 export type NodeId = 'complaint' | AgentNode | 'human' | 'outcome'
-export type PartyId = 'cbs' | 'npci' | 'bene' | 'acquirer' | 'ncrp' | 'crustdata'
+export type PartyId = 'cbs' | 'npci' | 'bene' | 'acquirer' | 'ncrp'
 export type NodeStatus = 'idle' | 'running' | 'done' | 'skipped' | 'waiting'
 export type EdgeState = 'idle' | 'active' | 'taken' | 'skipped'
 export type StepStatus = 'running' | 'ok' | 'warn' | 'bad' | 'info'
 
-export const PARTY_IDS: PartyId[] = ['cbs', 'npci', 'bene', 'acquirer', 'ncrp', 'crustdata']
+export const PARTY_IDS: PartyId[] = ['cbs', 'npci', 'bene', 'acquirer', 'ncrp']
 export const NODE_IDS: NodeId[] = ['complaint', 'orchestrator', 'investigator', 'policy', 'resolver', 'human', 'outcome']
 export const FLOW_EDGES = [
   'complaint>orchestrator',

@@ -36,9 +36,6 @@ def codex_signed_in() -> bool:
     except (OSError, ValueError):
         return False
 
-# Crustdata MCP: the Investigator uses it live for web, company and people lookups.
-CRUSTDATA_API_KEY = os.environ.get("CRUSTDATA_API_KEY", "")
-CRUSTDATA_MCP_URL = os.environ.get("CRUSTDATA_MCP_URL", "https://install.crustdata.com/mcp")
 LLM_MAX_TURNS = int(os.environ.get("LLM_MAX_TURNS", "8"))
 
 # Where agents reach the counterparties. Defaults to the bundled sandbox; point these at real adapters in a bank.
@@ -48,9 +45,8 @@ PARTY_URLS = {p: os.environ.get(f"{p.upper()}_URL", f"{PARTY_BASE_URL}/{p}") for
 RUNS_PER_VISITOR_PER_HOUR = int(os.environ.get("RUNS_PER_VISITOR_PER_HOUR", "6"))
 MAX_CONCURRENT_LLM_RUNS = int(os.environ.get("MAX_CONCURRENT_LLM_RUNS", "2"))
 
-# Finance API for cfo.ai (bearer token) and the public URL this server is reached at
-FINANCE_API_TOKEN = os.environ.get("FINANCE_API_TOKEN", "")
-PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
+# DisputePro MCP (/mcp) bearer token: cfo.ai and Claude Code send it to read desk numbers
+MCP_API_TOKEN = os.environ.get("MCP_API_TOKEN", "")
 
 AUTO_APPROVE_LIMIT_PAISE = int(os.environ.get("AUTO_APPROVE_LIMIT_PAISE", str(10_000_00)))
 NEATLOGS_API_KEY = os.environ.get("NEATLOGS_API_KEY", "")

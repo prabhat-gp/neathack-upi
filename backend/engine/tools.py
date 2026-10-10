@@ -175,14 +175,7 @@ SWEEP_TOOL = Tool("reconciliation_sweep", "Match NPCI settlement raw data agains
                   _obj({"settlement_date": {"type": "string", "description": "YYYY-MM-DD"}}, ["settlement_date"]), reconciliation_sweep)
 
 
-from . import crustdata  # noqa: E402
-
 INVESTIGATOR_TOOLS = [
-    Tool("scam_intel_search", "Crustdata live web search for public reports of a scam pattern or payee handle (e.g. 'UPI collect request KYC "
-         "update scam'). Use once for suspected fraud. Costs 1 Crustdata credit.",
-         _obj({"query": {"type": "string", "description": "Search query"}}, ["query"]), crustdata.scam_intel_search),
-    Tool("verify_merchant", "Crustdata company lookup: is this merchant a registered company? Use once for merchant payments. Free.",
-         _obj({"name": {"type": "string", "description": "Merchant name"}}, ["name"]), crustdata.verify_merchant),
     Tool("get_bank_transaction", "Fetch the debit from our core banking system (amount, payee, mode, any reversal/refund postings).",
          _obj({"utr": UTR}, ["utr"]), get_bank_transaction),
     Tool("get_customer_profile", "Fetch the customer's profile from core banking (device binding time, dispute history).",

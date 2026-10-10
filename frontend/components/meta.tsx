@@ -123,5 +123,4 @@ export const PARTY_META: Record<PartyId, { label: string; short: string; role: s
   bene: { label: 'Beneficiary bank', short: 'Beneficiary bank', role: 'Credit & account risk' },
   acquirer: { label: 'Merchant acquirer', short: 'Acquirer', role: 'Orders & refunds' },
   ncrp: { label: 'NCRP portal', short: 'Cybercrime portal', role: 'Fraud reports' },
-  crustdata: { label: 'Crustdata (MCP)', short: 'Crustdata', role: 'Web & company intel' },
 }

@@ -23,8 +23,6 @@ How to work:
 - Collect requests, very new payees, or alleged fraud: beneficiary_account_profile and ncrp_lookup.
 - The customer's words may be wrong, vague or in Hindi/Hinglish. Records win. If the complaint describes a different payment
   than the UTR (amount, payee, date), list recent transactions with get_statement_window and say which one they mean.
-- Outside intelligence (Crustdata): for suspected fraud call scam_intel_search once with the scam pattern; for merchant
-  payments call verify_merchant once with the merchant's name. Quote what you found in the summary.
 - Counterparties fail. Tools already retry once. If a party is still unreachable, try it at most once more, then decide on
   the evidence you have: NPCI is the system of record for whether the credit leg completed (TCC). Never wait out a deadline
   for a broken API; state what was unreachable in the evidence.

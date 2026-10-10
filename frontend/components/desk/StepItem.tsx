@@ -10,7 +10,6 @@ export const PARTY_STYLE: Record<PartyId, { name: string; chip: string; dot: str
   bene: { name: 'Other bank', chip: 'bg-sky-50 text-sky-700 ring-sky-200', dot: 'bg-sky-500' },
   acquirer: { name: 'Acquirer', chip: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200', dot: 'bg-fuchsia-500' },
   ncrp: { name: 'NCRP', chip: 'bg-rose-50 text-rose-700 ring-rose-200', dot: 'bg-rose-500' },
-  crustdata: { name: 'Crustdata', chip: 'bg-violet-50 text-violet-700 ring-violet-200', dot: 'bg-violet-500' },
 }
 
 export function Typewriter({ text, since }: { text: string; since: number }) {

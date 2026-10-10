@@ -17,7 +17,6 @@ PARTIES = {
     "bene": {"label": "Beneficiary bank", "role": "Credit confirmation · account risk · lien"},
     "acquirer": {"label": "Merchant acquirer", "role": "Merchant orders · refunds"},
     "ncrp": {"label": "NCRP portal", "role": "National cybercrime reporting"},
-    "crustdata": {"label": "Crustdata (MCP)", "role": "Live web, company & people intelligence"},
 }
 
 _client = httpx.AsyncClient(timeout=15)
