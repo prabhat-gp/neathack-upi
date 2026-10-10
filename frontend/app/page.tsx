@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import HeroPreview from '@/components/home/HeroPreview'
 import LiveStats from '@/components/home/LiveStats'
+import Partners from '@/components/home/Partners'
 import { Icon } from '@/components/meta'
 
 const SOURCES = [
@@ -9,8 +10,6 @@ const SOURCES = [
   { n: 3, label: 'RBI circular on TAT & compensation for failed transactions (20 Sep 2019)', url: 'https://rbi.org.in/commonman/English/scripts/Notification.aspx?Id=3074' },
   { n: 4, label: 'NPCI circular UPI/OC/213/2024-25 on chargeback auto-acceptance', url: 'https://npci.org.in/PDF/npci/upi/circular/2025/UPI-OC-No-213-FY-2024-25-Auto-Acceptance-Rejection-of-Chargeback.pdf' },
 ]
-
-const BUILT_ON = ['OpenAI Codex', 'Model Context Protocol', 'neatlogs', 'Entire', 'GitHub']
 
 const STEPS = [
   { n: '01', agent: 'Orchestrator', title: 'Catch it', text: 'Every settlement file and every complaint becomes a case the moment it lands, routed only on evidence.', icon: 'orchestrator' },
@@ -43,9 +42,9 @@ export default function Home() {
             <span className="font-display text-[16px] font-semibold tracking-tight">DisputePro</span>
           </Link>
           <nav className="hidden gap-7 text-[13.5px] text-white/55 md:flex">
+            <a href="#partners" className="transition hover:text-white">Powered by</a>
             <a href="#how" className="transition hover:text-white">How it works</a>
             <a href="#trust" className="transition hover:text-white">Trust</a>
-            <a href="#proof" className="transition hover:text-white">Live proof</a>
           </nav>
           <Link href="/console" className="group ml-auto flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-night transition hover:bg-white/90">
             Open the live desk <Icon name="arrow" className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
@@ -58,7 +57,7 @@ export default function Home() {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> AI agents for bank UPI desks
             </span>
             <h1 className="mt-6 font-display text-[48px] font-semibold leading-[1.02] tracking-[-0.045em] sm:text-[64px]">
-              Clear every UPI exception <span className="font-serif font-normal italic tracking-[-0.02em] text-violet-300">before</span> the RBI clock runs out.
+              ₹0 in RBI penalties. <span className="font-serif font-normal italic tracking-[-0.02em] text-violet-300">Every</span> UPI exception cleared in time.
             </h1>
             <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-white/60">
               DisputePro’s agents investigate failed and stuck UPI payments across core banking, NPCI and the other bank,
@@ -74,13 +73,12 @@ export default function Home() {
           <HeroPreview />
         </div>
 
-        <div className="relative border-t border-white/5">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-10 gap-y-3 px-6 py-6">
-            <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/30">Built on</span>
-            {BUILT_ON.map((b) => <span key={b} className="font-display text-[15px] font-semibold tracking-tight text-white/45 transition hover:text-white/80">{b}</span>)}
-          </div>
+        <div className="relative border-t border-white/10 bg-white/[0.02]">
+          <div className="mx-auto max-w-6xl px-6 py-10"><LiveStats /></div>
         </div>
       </section>
+
+      <Partners />
 
       {/* Problem */}
       <section className="mx-auto max-w-6xl px-6 py-28">
@@ -157,16 +155,15 @@ export default function Home() {
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_100%_100%,rgba(124,58,237,0.25),transparent_60%)]" />
           <div className="relative flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="text-[12.5px] font-medium text-violet-300">Live proof</p>
+              <p className="text-[12.5px] font-medium text-violet-300">Try it</p>
               <h2 className="mt-3 max-w-xl font-display text-[40px] font-semibold leading-[1.05] tracking-[-0.035em]">
-                Real cases, run by the agents on this server.
+                Pick a case, or write your own complaint. <span className="font-serif font-normal italic text-white/50">Watch the agents work.</span>
               </h2>
             </div>
             <Link href="/console" className="group flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[14px] font-semibold text-night transition hover:bg-white/90">
               Run one yourself <Icon name="arrow" className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </Link>
           </div>
-          <div className="relative mt-14"><LiveStats /></div>
         </div>
       </section>
 

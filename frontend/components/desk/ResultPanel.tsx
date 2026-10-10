@@ -30,7 +30,7 @@ function Hero({ o }: { o: Outcome }) {
   return (
     <section className="step-in rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white p-4">
       <div className="flex items-baseline gap-2">
-        <span className="font-serif text-[52px] leading-none text-emerald-600">{big}</span>
+        <span className="font-display font-semibold tracking-[-0.04em] text-[52px] leading-none text-emerald-600">{big}</span>
         <span className="text-[13px] font-medium text-slate-500">{sub}</span>
       </div>
       <p className="mt-1.5 text-[14px] font-semibold text-slate-900">{o.headline}</p>
@@ -69,14 +69,14 @@ export default function ResultPanel({ kase, run, live, deciding, onDecide }: {
           <div className="mt-3 font-mono text-[38px] font-semibold leading-none tracking-tight text-amber-300"><Countdown deadline={kase.deadline_at} /></div>
           <p className="mt-1.5 text-[12px] text-slate-400">left · deadline {kase.deadline_at.slice(0, 10)} 23:59 IST</p>
           <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-[12px]">
-            <div><div className="text-slate-400">Penalty so far</div><div className="font-serif text-[24px] text-emerald-300">₹0</div></div>
-            <div><div className="text-slate-400">After deadline</div><div className="font-serif text-[24px] text-rose-300">₹100<span className="font-sans text-[12px] text-slate-400">/day</span></div></div>
+            <div><div className="text-slate-400">Penalty so far</div><div className="font-display font-semibold tracking-tight text-[24px] text-emerald-300">₹0</div></div>
+            <div><div className="text-slate-400">After deadline</div><div className="font-display font-semibold tracking-tight text-[24px] text-rose-300">₹100<span className="font-sans text-[12px] text-slate-400">/day</span></div></div>
           </div>
         </section>
       ) : (
         <section className="rounded-2xl bg-ink p-4 text-white">
           <div className="text-[11px] font-medium uppercase tracking-widest text-slate-400">What’s at stake</div>
-          <p className="mt-2 font-serif text-[20px] leading-snug">
+          <p className="mt-2 font-display text-[18px] font-medium leading-snug tracking-[-0.01em]">
             {kase.id === 'collect-fraud' ? `${rs(kase.amount_paise)} sits in a 2-day-old account. Every minute it can move to the next mule.`
               : 'Left unanswered this becomes a chargeback the other bank must fight, then an RBI Ombudsman complaint.'}
           </p>

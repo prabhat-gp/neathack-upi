@@ -11,7 +11,7 @@ const config: Config = {
         mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
-        ink: '#0b1020',
+        ink: '#06070d',
         night: '#06070d',
       },
     },

@@ -38,7 +38,7 @@ export default function CaseReport({ o, run, onReplay }: { o: Outcome; run: RunS
           <div className={`text-[11px] font-semibold uppercase tracking-widest ${held ? 'text-amber-600' : 'text-emerald-600'}`}>
             {held ? 'Case report · waiting for approval' : 'Case report'}
           </div>
-          <h2 className="mt-1 font-serif text-[30px] leading-tight text-slate-900">{o.headline}</h2>
+          <h2 className="mt-1 font-display font-semibold tracking-[-0.03em] text-[28px] leading-tight text-slate-900">{o.headline}</h2>
           <p className="mt-1 text-[13.5px] leading-relaxed text-slate-600">{o.findings.summary}</p>
         </div>
 

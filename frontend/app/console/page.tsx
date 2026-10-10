@@ -134,29 +134,29 @@ export default function Desk() {
 
   return (
     <div className="flex h-screen flex-col bg-white">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 px-4">
+      <header className="flex h-14 shrink-0 items-center gap-3 bg-night px-4 text-white">
         <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-700 text-white">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-night">
             <Icon name="orchestrator" className="h-4 w-4" />
           </span>
-          <span className="text-[15px] font-semibold tracking-tight">DisputePro</span>
+          <span className="font-display text-[16px] font-semibold tracking-tight">DisputePro</span>
         </Link>
-        <span className="text-[13px] text-slate-300">/</span>
-        <span className="text-[13px] font-medium text-slate-600">UPI exceptions desk</span>
-        <span className="hidden text-[12px] text-slate-400 md:inline">Sahyadri Bank · sandbox</span>
+        <span className="text-[13px] text-white/20">/</span>
+        <span className="text-[13px] font-medium text-white/80">UPI exceptions desk</span>
+        <span className="hidden text-[12px] text-white/40 md:inline">Sahyadri Bank · sandbox</span>
         {meta && (
           <span title={meta.brain_label} className={`ml-1 hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium lg:flex ${
-            llm ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-800'}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${llm ? 'animate-pulse bg-emerald-500' : 'bg-amber-500'}`} />
+            llm ? 'bg-emerald-400/10 text-emerald-300' : 'bg-amber-400/10 text-amber-300'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${llm ? 'animate-pulse bg-emerald-400' : 'bg-amber-400'}`} />
             {llm ? `AI agents live · ${meta.brain_label}` : 'Rules engine (no AI login on this server)'}
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
           <details className="relative">
-            <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-[12.5px] font-medium text-slate-600 hover:bg-slate-50">
-              Demo <span className="text-slate-400">▾</span>
+            <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-full border border-white/15 px-3.5 text-[12.5px] font-medium text-white/70 transition hover:bg-white/5 hover:text-white">
+              Demo <span className="text-white/40">▾</span>
             </summary>
-            <div className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+            <div className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-slate-200 bg-white p-2 text-slate-900 shadow-lg">
               {!llm && (
                 <div className="mb-2">
                   <div className="px-1 pb-1 text-[10.5px] font-semibold uppercase tracking-widest text-slate-400">Playback pace</div>
@@ -175,7 +175,7 @@ export default function Desk() {
             </div>
           </details>
           <button onClick={start} disabled={running || deciding || !kase || (isCustom && !custom.complaint.trim())}
-            className="flex h-9 items-center gap-2 rounded-lg bg-ink px-4 text-[13px] font-semibold text-white shadow transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60">
+            className="flex h-9 items-center gap-2 rounded-full bg-violet-500 px-4 text-[13px] font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400 active:scale-[0.98] disabled:opacity-60">
             {running ? <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> Agents working · {(run.elapsedMs / 1000).toFixed(0)}s</>
               : <><Icon name="play" className="h-3.5 w-3.5" /> {run.phase === 'idle' ? 'Resolve with AI agents' : 'Run again'}</>}
           </button>
@@ -190,7 +190,7 @@ export default function Desk() {
           {isCustom ? (
             <section className="rounded-2xl border border-violet-200 bg-violet-50/40 p-3">
               <div className="flex items-baseline justify-between gap-3">
-                <h1 className="font-serif text-[26px] leading-tight tracking-tight">Write your own complaint</h1>
+                <h1 className="font-display font-semibold tracking-[-0.03em] text-[24px] leading-tight">Write your own complaint</h1>
                 <span className="text-[11.5px] text-slate-500">The agents only get the UTR and your words. They work out the rest.</span>
               </div>
               <div className="mt-2 grid gap-2 md:grid-cols-[170px_minmax(0,1fr)]">
@@ -223,7 +223,7 @@ export default function Desk() {
                 <span className="rounded bg-white px-1.5 py-0.5 font-mono font-semibold text-slate-800 ring-1 ring-slate-200">{rs(kase.amount_paise)}</span>
                 <span className="font-mono text-slate-400">UTR {kase.utr}</span>
               </div>
-              <h1 className="mt-1.5 font-serif text-[25px] leading-snug tracking-tight text-slate-900">{kase.story ?? kase.title}</h1>
+              <h1 className="mt-2 font-display font-semibold tracking-[-0.03em] text-[23px] leading-snug text-slate-900">{kase.story ?? kase.title}</h1>
               {kase.trigger === 'complaint' && <p className="mt-0.5 line-clamp-1 text-[12.5px] italic text-slate-500">“{kase.complaint}”</p>}
             </section>
           )}
@@ -242,7 +242,7 @@ export default function Desk() {
                   and nothing moves until the execution engine re-checks it.
                 </p>
                 <button onClick={start} disabled={!kase || (isCustom && !custom.complaint.trim())}
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-2.5 text-[13.5px] font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50">
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-500 px-5 py-2.5 text-[13.5px] font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:-translate-y-0.5 hover:bg-violet-400 active:scale-[0.98] disabled:opacity-50">
                   <Icon name="play" className="h-4 w-4" /> Resolve with AI agents
                 </button>
                 {model && <p className="mt-2 font-mono text-[11px] text-slate-400">model: {model} · about a minute</p>}
