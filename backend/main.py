@@ -5,7 +5,7 @@ import contextlib
 import json
 from datetime import datetime, time, timedelta
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -40,10 +40,31 @@ app.mount("/mcp", _mcp_app)  # DisputePro MCP server (cfo.ai, Claude Code)
 PACES = {"slow": 1.0, "normal": 0.5, "fast": 0.18, "instant": 0.0}
 RUNS: dict[str, Run] = {}
 
+# The agents run on our own ChatGPT plan, so a public deployment rations it: a per-visitor hourly cap and a
+# cap on AI runs in flight. Rules-mode runs are free and unlimited.
+_ACTIVE_LLM_RUNS: set[str] = set()
+_RUNS_BY_IP: dict[str, list[float]] = {}
+
+
+def _admit(request: Request) -> None:
+    if config.brain() == "rules":
+        return
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "?").split(",")[0].strip()
+    now = asyncio.get_running_loop().time()
+    recent = [t for t in _RUNS_BY_IP.get(ip, []) if now - t < 3600]
+    if len(recent) >= config.RUNS_PER_VISITOR_PER_HOUR:
+        raise HTTPException(429, f"You have run {len(recent)} AI cases this hour. Each case uses real model calls; please try again later.")
+    if len(_ACTIVE_LLM_RUNS) >= config.MAX_CONCURRENT_LLM_RUNS:
+        raise HTTPException(429, "The agents are working another reviewer's case right now. Please try again in a minute.")
+    _RUNS_BY_IP[ip] = recent + [now]
+
 
 def _sse(run: Run, work):
     async def body():
+        if run.brain != "rules":
+            _ACTIVE_LLM_RUNS.add(run.id)
         task = asyncio.create_task(work())
+        task.add_done_callback(lambda _t: _ACTIVE_LLM_RUNS.discard(run.id))
         while True:
             getter = asyncio.create_task(run.queue.get())
             done, _ = await asyncio.wait({getter, task}, return_when=asyncio.FIRST_COMPLETED)
@@ -126,7 +147,8 @@ class RunRequest(BaseModel):
 
 
 @app.post("/api/runs")
-async def start_run(req: RunRequest):
+async def start_run(req: RunRequest, request: Request):
+    _admit(request)
     if req.case_id:
         found = by_id(req.case_id)
         if not found:

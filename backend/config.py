@@ -45,6 +45,9 @@ LLM_MAX_TURNS = int(os.environ.get("LLM_MAX_TURNS", "8"))
 PARTY_BASE_URL = os.environ.get("PARTY_BASE_URL", f"http://127.0.0.1:{PORT}/sandbox")
 PARTY_URLS = {p: os.environ.get(f"{p.upper()}_URL", f"{PARTY_BASE_URL}/{p}") for p in ("cbs", "npci", "bene", "acquirer", "ncrp")}
 
+RUNS_PER_VISITOR_PER_HOUR = int(os.environ.get("RUNS_PER_VISITOR_PER_HOUR", "6"))
+MAX_CONCURRENT_LLM_RUNS = int(os.environ.get("MAX_CONCURRENT_LLM_RUNS", "2"))
+
 AUTO_APPROVE_LIMIT_PAISE = int(os.environ.get("AUTO_APPROVE_LIMIT_PAISE", str(10_000_00)))
 NEATLOGS_API_KEY = os.environ.get("NEATLOGS_API_KEY", "")
 

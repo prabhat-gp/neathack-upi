@@ -72,3 +72,18 @@ layer, with the same request and response shapes as `sandbox/routes.py`.
 | neatLogs | Wired (`neatlogs.init` + `@span`). Needs `NEATLOGS_API_KEY` |
 | Entire | Repo is git-initialised (nothing committed yet). Install the Entire CLI and enable it in this repo (docs.entire.io) to capture session checkpoints |
 | cfo.ai | Not started: business model for the pitch |
+
+## Deploy (judges never log in)
+
+The agents run on **OpenAI Codex using the team's own ChatGPT plan** (neatHack provides no model credits). The server
+holds its own Codex login; visitors only use the web app.
+
+```bash
+docker compose up -d --build
+# one time per server: sign the server in to our ChatGPT plan with a device code (open the URL, enter the code)
+docker compose exec backend codex login --device-auth
+docker compose exec backend codex login status   # -> Logged in using ChatGPT
+```
+
+The login lives in the `agent-data` volume (`/data/codex`), so rebuilds keep it. Without a login the app falls back to
+the rules engine and says so in the UI. `RUNS_PER_VISITOR_PER_HOUR` and `MAX_CONCURRENT_LLM_RUNS` ration the plan.

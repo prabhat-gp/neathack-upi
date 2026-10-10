@@ -5,6 +5,8 @@ services:
     env_file:
       - path: ./backend/.env
         required: false
+    volumes:
+      - agent-data:/data   # Codex login (server's own ChatGPT session) + run ledger survive rebuilds
   frontend:
     build:
       context: ./frontend
@@ -12,3 +14,6 @@ services:
         NEXT_PUBLIC_API_URL: http://localhost:8000
     ports: ["3000:3000"]
     depends_on: [backend]
+
+volumes:
+  agent-data:

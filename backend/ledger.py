@@ -7,7 +7,7 @@ from datetime import datetime
 
 from engine.rules import IST
 
-PATH = os.path.join(os.path.dirname(__file__), "ledger.db")
+PATH = os.environ.get("LEDGER_PATH") or os.path.join(os.path.dirname(__file__), "ledger.db")
 
 SCHEMA = """CREATE TABLE IF NOT EXISTS runs (
   run_id TEXT PRIMARY KEY, finished_at TEXT, case_id TEXT, case_type TEXT, status TEXT, headline TEXT,
