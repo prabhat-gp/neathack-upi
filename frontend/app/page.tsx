@@ -35,6 +35,41 @@ const SPONSORS = [
   },
 ] as const
 
+const PROOF = [
+  {
+    src: '/proof/neatlogs-trace.png', tool: 'neatlogs',
+    caption: 'One case, one trace: the KYC-fraud complaint from the tour. Intake, Orchestrator and Investigator, each Codex turn with its tokens, every bank call, and an automatic “Slow LLM Response” detection.',
+  },
+  {
+    src: '/proof/entire-checkpoint.png', tool: 'Entire',
+    caption: 'The commit that shipped this page, linked to the Claude Code session that wrote it: checkpoint, 72 steps, lines changed.',
+  },
+  {
+    src: '/proof/entire-commits.jpg', tool: 'Entire',
+    caption: '21 commits on the qa branch, each attributed and tracked before review.',
+  },
+  {
+    src: '/proof/entire-trail.jpg', tool: 'Entire',
+    caption: 'Trail #1: qa → main needs review and approval before anything reaches production.',
+  },
+]
+
+function Shot({ src, tool, caption, tall }: { src: string; tool: string; caption: string; tall?: boolean }) {
+  return (
+    <figure className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[.04]">
+      <a href={src} target="_blank" rel="noreferrer" className="block overflow-hidden bg-white">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={`${tool}: ${caption}`} loading="lazy"
+          className={`w-full object-top transition duration-500 group-hover:scale-[1.02] ${tall ? 'max-h-[520px] object-cover' : 'aspect-[16/10] object-contain'}`} />
+      </a>
+      <figcaption className="p-4 text-[12.5px] leading-5 text-white/60">
+        <span className="mr-2 inline-block rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/80">{tool}</span>
+        {caption}
+      </figcaption>
+    </figure>
+  )
+}
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-[#f6f7f9] text-[#17243b]">
@@ -207,6 +242,18 @@ export default function Home() {
                 )}
               </div>
             ))}
+          </div>
+          <div className="mt-16">
+            <p className="text-xs font-semibold uppercase tracking-[.18em] text-blue-300">See it for real</p>
+            <h3 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+              Unedited screenshots from this project’s own accounts.
+            </h3>
+            <div className="mt-8 grid gap-5">
+              <Shot {...PROOF[0]} tall />
+              <div className="grid gap-5 md:grid-cols-3">
+                {PROOF.slice(1).map((p) => <Shot key={p.src} {...p} />)}
+              </div>
+            </div>
           </div>
           <div className="mt-6 flex flex-wrap gap-x-8 gap-y-2 text-[12px] text-white/40">
             <span>Agents on <b className="font-semibold text-white/70">OpenAI Codex</b></span>
