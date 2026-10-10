@@ -1,6 +1,6 @@
 'use client'
 
-import { rs, type Case, type Outcome, type RunState, type Snapshot } from '@/lib/run'
+import { rs, type DeskCase, type Outcome, type RunState, type Snapshot } from '@/lib/run'
 import { Icon } from '../meta'
 import Countdown from './Countdown'
 
@@ -24,7 +24,7 @@ function changes(b?: Snapshot | null, s?: Snapshot | null): { what: string; from
 }
 
 function Hero({ o }: { o: Outcome }) {
-  if (o.status === 'AWAITING_APPROVAL') return null
+  if (o.status === 'AWAITING_APPROVAL' || o.status === 'NEEDS_INFO') return null
   const big = o.deadline ? rs(o.penalty_paid_paise) : o.frozen_paise ? rs(o.frozen_paise) : 'Closed'
   const sub = o.deadline ? 'penalty paid' : o.frozen_paise ? 'frozen before it moved' : ''
   return (
@@ -44,7 +44,7 @@ function Hero({ o }: { o: Outcome }) {
 }
 
 export default function ResultPanel({ kase, run, live, deciding, onDecide }: {
-  kase?: Case
+  kase?: DeskCase
   run: RunState
   live: Snapshot | null
   deciding: boolean
@@ -64,7 +64,7 @@ export default function ResultPanel({ kase, run, live, deciding, onDecide }: {
         <section className="rounded-2xl bg-ink p-4 text-white">
           <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-400">
             <span>Penalty clock</span>
-            <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono normal-case tracking-normal text-slate-300">{kase.rule}</span>
+            <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono normal-case tracking-normal text-slate-300">{kase.rule || `T+${kase.tat_days}`}</span>
           </div>
           <div className="mt-3 font-mono text-[38px] font-semibold leading-none tracking-tight text-amber-300"><Countdown deadline={kase.deadline_at} /></div>
           <p className="mt-1.5 text-[12px] text-slate-400">left · deadline {kase.deadline_at.slice(0, 10)} 23:59 IST</p>
@@ -77,8 +77,8 @@ export default function ResultPanel({ kase, run, live, deciding, onDecide }: {
         <section className="rounded-2xl bg-ink p-4 text-white">
           <div className="text-[11px] font-medium uppercase tracking-widest text-slate-400">What’s at stake</div>
           <p className="mt-2 font-display text-[18px] font-medium leading-snug tracking-[-0.01em]">
-            {kase.id === 'collect-fraud' ? `${rs(kase.amount_paise)} sits in a 2-day-old account. Every minute it can move to the next mule.`
-              : 'Left unanswered this becomes a chargeback the other bank must fight, then an RBI Ombudsman complaint.'}
+            {kase.utr ? 'An unanswered complaint becomes a chargeback the other bank must fight, then an RBI Ombudsman complaint.'
+              : 'The customer wrote in without a UTR. The Intake agent first has to work out which payment they mean.'}
           </p>
         </section>
       ))}
@@ -124,6 +124,22 @@ export default function ResultPanel({ kase, run, live, deciding, onDecide }: {
           <p className="mt-2 text-[12px] text-slate-400">{started ? 'Nothing has moved yet. Agents only act after the facts are re-checked.' : 'Real records: balances, suspense, NPCI legs, liens. Changes appear here live.'}</p>
         )}
       </section>
+
+      {!!kase.messages?.length && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h4 className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Conversation with {kase.customer_name.split(' ')[0]}</h4>
+          <div className="mt-2 space-y-1.5">
+            {kase.messages.map((m) => (
+              <div key={m.id} className={`step-in flex ${m.sender === 'customer' ? 'justify-start' : 'justify-end'}`}>
+                <p className={`max-w-[90%] rounded-xl px-2.5 py-1.5 text-[11.5px] leading-snug ${m.sender === 'customer' ? 'bg-slate-100 text-slate-700' : 'bg-violet-50 text-violet-900'}`}>
+                  <span className="block text-[9.5px] font-semibold uppercase tracking-wider opacity-60">{m.sender === 'customer' ? `${m.channel === 'UDIR' ? 'UPI app' : m.channel.toLowerCase()} · customer` : `bank · ${m.channel === 'UDIR' ? 'UPI app' : m.channel.toLowerCase()}`}</span>
+                  {m.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
         <h4 className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Proof it’s AI, not a script</h4>

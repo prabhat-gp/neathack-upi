@@ -64,10 +64,10 @@ export default function Home() {
               and resolve them inside the deadline. Your bank pays ₹0 in compensation.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-3">
-              <Link href="/console" className="group flex items-center gap-2 rounded-full bg-violet-500 px-6 py-3 text-[14px] font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400">
-                <Icon name="play" className="h-4 w-4" /> Run a live case
+              <Link href="/app" className="group flex items-center gap-2 rounded-full bg-violet-500 px-6 py-3 text-[14px] font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400">
+                <Icon name="play" className="h-4 w-4" /> Complain as a customer
               </Link>
-              <a href="#how" className="rounded-full px-5 py-3 text-[14px] font-medium text-white/70 transition hover:text-white">How it works →</a>
+              <Link href="/console" className="rounded-full border border-white/15 px-5 py-3 text-[14px] font-medium text-white/80 transition hover:bg-white/5 hover:text-white">Open the bank’s ops desk →</Link>
             </div>
           </div>
           <HeroPreview />
@@ -157,11 +157,11 @@ export default function Home() {
             <div>
               <p className="text-[12.5px] font-medium text-violet-300">Try it</p>
               <h2 className="mt-3 max-w-xl font-display text-[40px] font-semibold leading-[1.05] tracking-[-0.035em]">
-                Pick a case, or write your own complaint. <span className="font-serif font-normal italic text-white/50">Watch the agents work.</span>
+                Be the customer in one tab, the bank in the other. <span className="font-serif font-normal italic text-white/50">Watch the agents in between.</span>
               </h2>
             </div>
-            <Link href="/console" className="group flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[14px] font-semibold text-night transition hover:bg-white/90">
-              Run one yourself <Icon name="arrow" className="h-4 w-4 transition group-hover:translate-x-0.5" />
+            <Link href="/app" className="group flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[14px] font-semibold text-night transition hover:bg-white/90">
+              Complain as a customer <Icon name="arrow" className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </Link>
           </div>
         </div>

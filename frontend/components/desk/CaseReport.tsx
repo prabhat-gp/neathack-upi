@@ -31,6 +31,17 @@ function Block({ n, title, children }: { n: number; title: string; children: Rea
 export default function CaseReport({ o, run, onReplay }: { o: Outcome; run: RunState; onReplay: (n: NodeId) => void }) {
   const agents: NodeId[] = ['investigator', 'policy', 'resolver']
   const held = o.status === 'AWAITING_APPROVAL'
+  if (o.status === 'NEEDS_INFO') {
+    return (
+      <div className="flex-1 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="text-[11px] font-semibold uppercase tracking-widest text-amber-600">Waiting on the customer</div>
+        <h2 className="mt-1 font-display text-[26px] font-semibold tracking-[-0.03em]">The Intake agent asked one question</h2>
+        <p className="mt-3 rounded-xl bg-violet-50 p-3 text-[13.5px] text-violet-900">“{o.customer_message}”</p>
+        <p className="mt-3 text-[13px] text-slate-500">When the customer replies, the case goes back into the queue and the agents pick it up again.</p>
+        <button onClick={() => onReplay('intake')} className="mt-4 text-[12.5px] font-medium text-violet-700 hover:underline">See how Intake decided →</button>
+      </div>
+    )
+  }
   return (
     <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mx-auto max-w-3xl space-y-6">

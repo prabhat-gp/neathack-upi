@@ -34,7 +34,8 @@ Route on evidence, never on the customer's claim:
 2. If the case is CREDIT_CONFIRMED or ALREADY_RESOLVED, nothing is owed: skip Policy and Resolver and close the case.
 3. If UNCLEAR, close with status ESCALATED.
 4. Otherwise dispatch Policy, then Resolver, then close the case.
-Before each dispatch, say in one sentence why. Give each agent a specific instruction. Finish with close_case."""
+Before each dispatch, say in one sentence why. Give each agent a specific instruction. Finish with close_case.
+If you close without the Resolver (nothing owed, already refunded, credit confirmed), write customer_message yourself."""
 
 
 def _orch_tools() -> list[Tool]:
@@ -45,7 +46,10 @@ def _orch_tools() -> list[Tool]:
         Tool("dispatch_resolver", "Send findings + ruling to the Resolver. Returns the validated plan and execution status.", instr),
         Tool("close_case", "Close the case with a headline and summary for the bank's case file.",
              _obj({"headline": {"type": "string", "description": "Under 8 words"},
-                   "summary": {"type": "string", "description": "2 sentences for the case file"}}, ["headline", "summary"])),
+                   "summary": {"type": "string", "description": "2 sentences for the case file"},
+                   "customer_message": {"type": "string", "description": "If the Resolver did not run: a short, warm reply to the "
+                                        "customer in exactly the language and script they wrote in (Hindi stays Hindi, Hinglish stays Hinglish), explaining what happened to their money"}},
+                  ["headline", "summary"])),
     ]
 
 
@@ -265,17 +269,23 @@ def _outcome(run: Run, closing: dict) -> dict:
         "frozen_paise": frozen,
         "ops": {"api_calls": len(calls), "parties": sorted(set(calls)), "human_touches": 1 if run.facts.get("approved_by") else 0,
                 "seconds": round(run.ms() / 1000, 1)},
-        "customer_message": (plan or {}).get("customer_message") or _proof_message(run, f),
+        "customer_message": (plan or {}).get("customer_message") or closing.get("customer_message") or _proof_message(run, f),
         "citation": (r or {}).get("citation"),
         "usage": run.usage,
     }
 
 
 def _proof_message(run: Run, f: dict) -> str:
+    name = run.case['customer_name'].split()[0]
+    if f["case_type"] == "ALREADY_RESOLVED":
+        st = run.facts.get("evidence", {}).get("npci", {}).get(f["disputed_utr"]) or {}
+        when = (st.get("reversal_at") or "")[:16].replace("T", " at ")
+        return (f"Hi {name}, that payment didn't go through and the full amount was already returned to your account"
+                f"{' on ' + when if when else ''}. Please check your statement; no further action is needed.")
     cr = run.facts.get("evidence", {}).get("bene_credit", {}).get(f["disputed_utr"])
     if f["case_type"] != "CREDIT_CONFIRMED" or not cr:
         return ""
-    return (f"Hi {run.case['customer_name'].split()[0]}, your payment reached {cr['holder_name']} on "
+    return (f"Hi {name}, your payment reached {cr['holder_name']} on "
             f"{cr['credited_at'][:16].replace('T', ' at ')} (bank ref {cr['credit_ref']}). Please share this reference with them.")
 
 

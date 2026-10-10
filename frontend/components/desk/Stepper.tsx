@@ -5,10 +5,10 @@ import { Icon, NODE_META } from '../meta'
 import { TOOL_LABEL } from './Feed'
 
 const SHORT: Partial<Record<NodeId, string>> = {
-  orchestrator: 'Orchestrator', investigator: 'Investigator', policy: 'Policy', resolver: 'Resolver', human: 'You', outcome: 'Done',
+  intake: 'Intake', orchestrator: 'Orchestrator', investigator: 'Investigator', policy: 'Policy', resolver: 'Resolver', human: 'You', outcome: 'Done',
 }
 const JOB: Partial<Record<NodeId, string>> = {
-  orchestrator: 'Routes the case', investigator: 'Finds what happened', policy: 'Deadline & what is owed',
+  intake: 'Finds the payment', orchestrator: 'Routes the case', investigator: 'Finds what happened', policy: 'Deadline & what is owed',
   resolver: 'Fixes it safely', human: 'Approve or reject', outcome: 'Closed with proof',
 }
 
@@ -19,7 +19,7 @@ function orchestratorLine(run: RunState) {
 
 export default function Stepper({ run, focus, onFocus }: { run: RunState; focus: NodeId | null; onFocus: (n: NodeId) => void }) {
   const held = run.phase === 'awaiting' || run.nodes.human.status === 'running' || run.nodes.human.status === 'done'
-  const ids: NodeId[] = ['orchestrator', 'investigator', 'policy', 'resolver', ...(held ? (['human'] as NodeId[]) : []), 'outcome']
+  const ids: NodeId[] = ['intake', 'orchestrator', 'investigator', 'policy', 'resolver', ...(held ? (['human'] as NodeId[]) : []), 'outcome']
   const finished = run.phase === 'done'
 
   return (

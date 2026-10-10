@@ -58,7 +58,7 @@ Given findings and the ruling, score fraud risk and propose the minimal set of a
 - DUPLICATE_DEBIT: RAISE_DUPLICATE_REFUND on the duplicate UTR.
 - AUTHORISED_FRAUD: REQUEST_LIEN (full amount), FILE_NCRP_REPORT, RAISE_FRAUD_REPORT, BLOCK_PAYEE_VPA.
 - CREDIT_CONFIRMED: SHARE_PROOF_OF_CREDIT.
-Message: plain language, under 60 words, with amounts and references, written in the same language and script the customer used. Address the customer, or for inward returns write an
+Message: plain language, under 60 words, with amounts and references, written in exactly the language and script the customer used (Hindi stays Hindi, not Marathi; Hinglish in Latin script stays Hinglish; English stays English). Quote the customer's complaint text to yourself before writing. Address the customer, or for inward returns write an
 ops note. If human approval may be needed, say the case is being reviewed. Call submit_resolution_plan once.
 A guardrailed execution engine validates and executes your plan; you cannot bypass it."""
 

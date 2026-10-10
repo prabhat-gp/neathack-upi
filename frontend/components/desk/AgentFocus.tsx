@@ -6,6 +6,7 @@ import { Icon, NODE_META } from '../meta'
 import Feed from './Feed'
 
 const ASK: Partial<Record<NodeId, string>> = {
+  intake: 'Reads the customer’s message in any language and works out which payment they mean.',
   orchestrator: 'Reads the case and decides which agent works it next, based only on evidence.',
   investigator: 'Asks NPCI, core banking and the other bank what really happened to the money.',
   policy: 'Applies the RBI rule: the deadline, the time left and what is owed.',

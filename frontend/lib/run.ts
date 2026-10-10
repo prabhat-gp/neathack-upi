@@ -1,6 +1,6 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export type AgentNode = 'orchestrator' | 'investigator' | 'policy' | 'resolver'
+export type AgentNode = 'intake' | 'orchestrator' | 'investigator' | 'policy' | 'resolver'
 export type NodeId = 'complaint' | AgentNode | 'human' | 'outcome'
 export type PartyId = 'cbs' | 'npci' | 'bene' | 'acquirer' | 'ncrp'
 export type NodeStatus = 'idle' | 'running' | 'done' | 'skipped' | 'waiting'
@@ -8,7 +8,7 @@ export type EdgeState = 'idle' | 'active' | 'taken' | 'skipped'
 export type StepStatus = 'running' | 'ok' | 'warn' | 'bad' | 'info'
 
 export const PARTY_IDS: PartyId[] = ['cbs', 'npci', 'bene', 'acquirer', 'ncrp']
-export const NODE_IDS: NodeId[] = ['complaint', 'orchestrator', 'investigator', 'policy', 'resolver', 'human', 'outcome']
+export const NODE_IDS: NodeId[] = ['complaint', 'intake', 'orchestrator', 'investigator', 'policy', 'resolver', 'human', 'outcome']
 export const FLOW_EDGES = [
   'complaint>orchestrator',
   'orchestrator>investigator',
@@ -38,6 +38,33 @@ export interface Case {
   initiated_at: string | null
   deadline_at: string | null
   resolved: string | null
+}
+
+export type DeskStatus = 'QUEUED' | 'WORKING' | 'NEEDS_YOU' | 'NEEDS_INFO' | 'RESOLVED' | 'ESCALATED' | 'FAILED'
+
+export interface Message { id: number; customer_id: string; case_id: string | null; sender: 'customer' | 'bank'; channel: string; text: string; created_at: string }
+
+export interface DeskCase {
+  id: string
+  channel: 'UDIR' | 'CHAT' | 'RECON'
+  channel_label: string
+  customer_id: string
+  customer_name: string
+  customer_vpa?: string
+  utr: string | null
+  message: string
+  status: DeskStatus
+  created_at: string
+  updated_at: string
+  run_id: string | null
+  headline: string | null
+  amount_paise?: number
+  role?: string
+  rule?: string
+  tat_days?: number | null
+  deadline_at?: string | null
+  initiated_at?: string
+  messages?: Message[]
 }
 
 export interface Meta {
@@ -97,7 +124,7 @@ export interface Snapshot {
 }
 
 export interface Outcome {
-  status: 'RESOLVED' | 'ACTIONED' | 'CLOSED' | 'MONITORING' | 'AWAITING_APPROVAL' | 'ESCALATED'
+  status: 'RESOLVED' | 'ACTIONED' | 'CLOSED' | 'MONITORING' | 'AWAITING_APPROVAL' | 'ESCALATED' | 'NEEDS_INFO'
   headline: string
   summary: string
   case_type: string
@@ -169,6 +196,10 @@ export function reduceRun(state: RunState, ev: RunEvent): RunState {
       return { ...state, elapsedMs, edges: { ...state.edges, [ev.edge]: ev.state } }
     case 'usage':
       return { ...state, usage: { ...state.usage, [ev.node]: { input_tokens: ev.input_tokens, output_tokens: ev.output_tokens, llm_calls: ev.llm_calls } } }
+    case 'before':
+      return { ...state, before: ev.before }
+    case 'idle':
+      return state
     case 'step': {
       const step: Step = {
         id: ev.id, node: ev.node, kind: ev.kind, title: ev.title, detail: ev.detail, status: ev.status,
@@ -224,6 +255,37 @@ export function partyLinks(steps: Step[]): PartyLink[] {
     map.set(key, link)
   }
   return [...map.values()]
+}
+
+/** Follow a run that may already be in progress: replays its events, then streams live ones until it goes idle. */
+export async function followRun(runId: string, onEvent: (ev: RunEvent) => void, signal?: AbortSignal) {
+  const res = await fetch(`${API_URL}/api/runs/${runId}/events`, { signal })
+  if (!res.ok || !res.body) throw new Error(`Run unavailable (${res.status})`)
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    let idx
+    while ((idx = buf.indexOf('\n\n')) >= 0) {
+      const line = buf.slice(0, idx).split('\n').find((l) => l.startsWith('data: '))
+      buf = buf.slice(idx + 2)
+      if (line) onEvent(JSON.parse(line.slice(6)))
+    }
+  }
+}
+
+export async function api<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, body === undefined ? undefined : {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}))
+    throw new Error(d.detail ?? `Request failed (${res.status})`)
+  }
+  return res.json()
 }
 
 export async function streamEvents(path: string, body: unknown, onEvent: (ev: RunEvent) => void, signal?: AbortSignal) {

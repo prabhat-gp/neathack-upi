@@ -2,6 +2,7 @@ import type { NodeId, PartyId } from '@/lib/run'
 
 const PATHS: Record<string, JSX.Element> = {
   complaint: <path d="M4 5h16v11H9l-5 4z" />,
+  intake: <path d="M4 4h16v12H8l-4 4zM8 9h8M8 12h5" />,
   orchestrator: (
     <>
       <circle cx="12" cy="5" r="2.5" />
@@ -109,6 +110,7 @@ const TONES: Record<string, Tone> = {
 
 export const NODE_META: Record<NodeId, Tone & { label: string; role: string; ai: boolean }> = {
   complaint: { ...TONES.slate, label: 'Customer complaint', role: 'Intake', ai: false },
+  intake: { ...TONES.indigo, label: 'Intake', role: 'Reads the message, finds the payment', ai: true },
   orchestrator: { ...TONES.violet, label: 'Master Orchestrator', role: 'Master agent · routes on evidence', ai: true },
   investigator: { ...TONES.sky, label: 'Investigator', role: 'Gathers evidence from every party', ai: true },
   policy: { ...TONES.amber, label: 'Policy', role: 'Applies RBI rules · computes what is owed', ai: true },

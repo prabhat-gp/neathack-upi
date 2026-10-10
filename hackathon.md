@@ -69,6 +69,20 @@ prabhat-gp (github.com/prabhat-gp)
   - Verified in neatlogs: one trace per case, WORKFLOW > AGENT > LLM (Codex turn with tokens) > TOOL > counterparty call.
 - Branching: `qa` for work in progress, `main` is production.
 
+- Evening (2026-10-10): rebuilt the product around how complaints actually reach a bank.
+  - A synthetic Sahyadri Bank: 40 customers, ~430 UPI payments over 7 days, with realistic failures hidden in normal
+    traffic (deemed, auto-reversed, suspense, collect-request mule). The six story customers live inside it.
+  - Channels open cases: UPI-app complaints via NPCI UDIR (UTR attached), free-text chat (any language), and the
+    nightly reconciliation sweep. New **Intake agent** finds the payment a chat message is about, or asks the customer.
+  - A supervisor loop works the queue on its own (2 in flight); replies go back on the customer's channel.
+    Autopilot runs the recon sweep and has customers write in every 2 minutes (capped at 10 per session).
+  - New screens: a customer UPI app (`/app`) and an ops desk (`/console`) that follows each case live.
+  - Tests that ran: rules brain end to end (chat → intake → refund; vague chat → question → follow-up → closed; UDIR
+    fraud → approval → ₹31,200 frozen; autopilot → 8 recon exceptions + 2 complaints). Real Codex agents: Hinglish chat
+    "kal Kiran ko 3000 bheje the…" → Intake found the UTR → correctly closed as already auto-refunded (56s); Hindi UDIR
+    complaint → refunded ₹2,000 with 9h 29m to spare (84s). Found and fixed: no reply when the Orchestrator closed
+    without the Resolver; reply written in Marathi to a Hindi complaint (language rule tightened).
+
 ## Demo
 _Pending: URL and video. Local: backend `uvicorn main:app --port 8000`, frontend `npm run build && npm start -- -p 3001`._
 

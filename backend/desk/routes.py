@@ -1,7 +1,7 @@
 """HTTP surface of the desk: customer channels (the UPI app and chat) and the ops console's queue."""
 
-import asyncio
 import json
+import time
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -22,7 +22,7 @@ def admit(request: Request) -> None:
     if config.brain() == "rules":
         return
     ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "?").split(",")[0].strip()
-    now = asyncio.get_running_loop().time()
+    now = time.monotonic()
     recent = [t for t in _RUNS_BY_IP.get(ip, []) if now - t < 3600]
     if len(recent) >= config.RUNS_PER_VISITOR_PER_HOUR:
         raise HTTPException(429, "You've sent several complaints this hour. Each one is worked by real AI agents; please try again later.")
