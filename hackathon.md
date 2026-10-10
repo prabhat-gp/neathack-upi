@@ -19,13 +19,12 @@ prabhat-gp (github.com/prabhat-gp)
 | Part | What is actually used |
 |---|---|
 | Agents | Python, FastAPI. Model runtime: **OpenAI Codex CLI on the team's own ChatGPT plan** (`codex exec --json`, ChatGPT login, no API key) — `backend/engine/agent_codex.py`. Each agent's tools are served to Codex from a per-agent MCP endpoint (`backend/agent_mcp.py`). Building/testing on `gpt-6-luna` (low effort); a stronger model is planned for the judged deployment. neatHack provides no model credits (AWS account excludes Bedrock; confirmed by organisers on Discord). |
-| Crustdata | Hosted MCP server given to the Investigator for live web/company intel; calls shown as a party in the console |
-| DisputePro MCP | Our own MCP server at `/mcp` (`desk_metrics`, `recent_runs`, `open_exceptions`) and `/api/metrics`, fed by a run ledger (tokens, provider-reported cost, time, deadline, penalty) — for cfo.ai and Claude Code |
+| DisputePro MCP | Our own MCP server at `/mcp` behind a bearer token (`desk_metrics`, `recent_runs`, `market_facts`, `open_exceptions`), fed by a run ledger (tokens, time, deadline, penalty) — the single surface cfo.ai and Claude Code read from |
 | Agent fallback | Deterministic rules brain with identical tools/outputs, used only when no LLM credentials are set |
 | Counterparties | Sandbox CBS, NPCI switch + UDIR, beneficiary banks, merchant acquirer, NCRP portal — SQLite state, HTTP APIs (`backend/sandbox/`) |
 | Frontend | Next.js 14, Tailwind: `/` landing page, `/console` exceptions desk |
 | neatlogs | `backend/tracing.py`: one trace per case — WORKFLOW > AGENT (orchestrator, investigator, policy, resolver) > LLM (each Codex turn: model, prompt, output, token counts incl. cached/reasoning) and TOOL (each tool call) > TOOL (each counterparty HTTP call, errors marked). Manual spans because model calls happen inside the Codex process. |
-| Entire | CLI 0.11.4 enabled for Claude Code; build session attached as checkpoint `01M4J7A2GM3XCY6WDZW1VCH61D` and pushed to the public repo; entire.io mirror pending |
+| Entire | CLI 0.11.4 with Claude Code hooks; every commit on `qa` carries an Entire-Checkpoint trailer and checkpoints sync to GitHub; repo mirrored on entire.io (US East + Mumbai). **Graph** v0.4.0 indexes the repo (449 symbols, 1,685 relations) for code search/impact; **Brain** 0.1.0 distils build sessions into project memory (MCP server registered in `.mcp.json`); 6 **Trail runners** (review, risk, security, drift, confidence, summary) committed for qa→main reviews |
 | cfo.ai | **Pending**: business plan via cfo.ai MCP server (`https://api.cfo.ai/mcp`) |
 
 ## Build log
@@ -57,6 +56,18 @@ prabhat-gp (github.com/prabhat-gp)
   instead of neatlogs' isolated provider, and child spans did not nest (neatlogs resolves parents from its own context key).
   Verified nesting WORKFLOW > AGENT > TOOL in the dashboard with a rules-mode run.
 - Public repo created: github.com/prabhat-gp/neathack-upi. Docker removed (plain processes on one EC2 instance planned).
+
+- Afternoon (2026-10-10):
+  - All six scenes run on Codex agents. Failures found and fixed: an agent ended without submitting (now the Codex
+    session is resumed and nudged), the model filed a "duplicate refund" for a payment that never reached the merchant
+    (prompt clarified; execution engine now requires NPCI credit confirmation before a duplicate refund), and agents
+    wrote ₹80,000 for an ₹8,000 case because tools returned paise (tools now return a rupee string beside every amount).
+  - Removed Crustdata from the case flow after review: its results never changed a decision. Removed the separate
+    Finance API; the DisputePro MCP (with bearer auth) is the one integration surface.
+  - Console rebuilt for reviewers: pipeline stepper, one agent in focus at a time, case report on completion, live
+    "what changed in the bank's systems", and a link from each run to its neatlogs trace.
+  - Verified in neatlogs: one trace per case, WORKFLOW > AGENT > LLM (Codex turn with tokens) > TOOL > counterparty call.
+- Branching: `qa` for work in progress, `main` is production.
 
 ## Demo
 _Pending: URL and video. Local: backend `uvicorn main:app --port 8000`, frontend `npm run build && npm start -- -p 3001`._
