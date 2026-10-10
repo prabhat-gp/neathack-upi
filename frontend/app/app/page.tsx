@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, rs, type DeskCase, type Message } from '@/lib/run'
 import { Icon } from '@/components/meta'
+import PortalSwitch from '@/components/PortalSwitch'
 import Tour, { TOUR_SEEN, TOUR_STAGE, tourStore, type TourStep } from '@/components/tour/Tour'
 
 type Person = { id: string; name: string; vpa: string }
@@ -68,6 +69,7 @@ export default function CustomerApp() {
     [err, setErr] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const [touring, setTouring] = useState(false)
+  const [sent, setSent] = useState<DeskCase | null>(null)
   useEffect(() => {
     const asked = new URLSearchParams(window.location.search).has('tour')
     if (asked || !tourStore(TOUR_SEEN)) {
@@ -161,7 +163,7 @@ export default function CustomerApp() {
   const messages = thread.filter((m) => m.case_id === selected)
   async function submit(requestReview = false) {
     if (!text.trim() || busy) return
-    // A new complaint (or the answer the agents asked for) goes straight to the bank desk to watch the agents.
+    // A new complaint (or the answer the agents asked for) starts the agents at once; then offer to watch them.
     const toDesk = !requestReview && (!!txn || !selected || kase?.status === 'NEEDS_INFO')
     setBusy(true)
     setErr(null)
@@ -178,9 +180,11 @@ export default function CustomerApp() {
             },
       )
       if (toDesk) {
-        if (touring) tourStore(TOUR_STAGE, 'console')
-        router.push(`/console?case=${c.id}`)
-        return
+        if (touring) {
+          tourStore(TOUR_STAGE, 'console')
+          setTouring(false)
+        }
+        setSent(c)
       }
       setSelected(c.id)
       setTxn(null)
@@ -224,7 +228,7 @@ export default function CustomerApp() {
       body: (
         <>
           Tap a story or type in any language, Hindi, Hinglish or English. No transaction ID needed. Then press{' '}
-          <b>Send</b>: you’ll go straight to the bank’s desk to watch the agents work.
+          <b>Send</b>. The agents start right away, and you can watch them on the bank’s desk.
         </>
       ),
       action: 'Pick a story, then press Send',
@@ -245,7 +249,9 @@ export default function CustomerApp() {
             </span>
             DisputePro
           </Link>
-          <span className="text-xs text-slate-400">Customer experience</span>
+          <span className="hidden sm:block">
+            <PortalSwitch current="customer" bankHref={selected ? `/console?case=${selected}` : '/console'} />
+          </span>
           <span className="ml-auto rounded border px-2 py-1 text-[10px] uppercase tracking-widest text-slate-400">
             Sandbox · fictional bank
           </span>
@@ -614,6 +620,36 @@ export default function CustomerApp() {
           )}
         </section>
       </main>
+      {sent && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[#111d32]/50 p-4 backdrop-blur-sm"
+          onClick={() => {
+            tourStore(TOUR_STAGE, null)
+            setSent(null)
+          }}>
+          <div role="dialog" aria-modal="true" aria-label="Watch the agents" onClick={(e) => e.stopPropagation()}
+            className="step-in w-full max-w-md rounded-2xl bg-white p-7 text-[#17243b] shadow-2xl">
+            <span className="mb-5 grid h-12 w-12 place-items-center rounded-xl bg-blue-50 text-blue-600">
+              <Icon name="orchestrator" className="h-6 w-6" />
+            </span>
+            <p className="text-[11px] font-semibold uppercase tracking-[.16em] text-blue-600">Case {sent.id} · agents started</p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight">Your complaint is with the bank.</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              The AI agents are already investigating. Watch every handoff live on the bank’s desk, or stay here and
+              the answer will appear in this conversation.
+            </p>
+            <button autoFocus onClick={() => router.push(`/console?case=${sent.id}`)}
+              className="desk-button desk-primary mt-6 w-full !py-3 !text-sm">
+              Watch agents →
+            </button>
+            <button onClick={() => {
+              tourStore(TOUR_STAGE, null)
+              setSent(null)
+            }} className="mt-3 w-full py-2 text-xs text-slate-500 hover:text-slate-800">
+              Stay here
+            </button>
+          </div>
+        </div>
+      )}
       <Tour open={touring} total={8} onClose={() => setTouring(false)} steps={tourSteps} />
       {txn && (
         <div

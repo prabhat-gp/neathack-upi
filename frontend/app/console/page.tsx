@@ -27,6 +27,7 @@ import CaseReport from '@/components/desk/CaseReport'
 import ResultPanel from '@/components/desk/ResultPanel'
 import Countdown from '@/components/desk/Countdown'
 import { Icon, NODE_META } from '@/components/meta'
+import PortalSwitch from '@/components/PortalSwitch'
 import Tour, { TOUR_SEEN, TOUR_STAGE, tourStore, type TourStep } from '@/components/tour/Tour'
 
 const FILTERS = [
@@ -401,8 +402,13 @@ export default function Desk() {
           </span>
           DisputePro
         </Link>
-        <span className="hidden text-white/25 sm:block">/</span>
-        <span className="text-sm text-white/70">Agent desk</span>
+        <span className="hidden sm:block">
+          <PortalSwitch
+            dark
+            current="bank"
+            customerHref={kase && kase.channel !== 'RECON' ? `/app?c=${kase.customer_id}&case=${kase.id}` : '/app'}
+          />
+        </span>
         <span className="rounded border border-white/15 px-2 py-1 text-[10px] uppercase tracking-widest text-white/60">
           Sahyadri · Sandbox
         </span>
@@ -415,12 +421,7 @@ export default function Desk() {
           <button onClick={() => setTour('short')} className="text-xs text-white/60 hover:text-white">
             Take the tour
           </button>
-          <Link
-            href="/app"
-            className="rounded-lg bg-white/10 px-3 py-2 text-xs hover:bg-white/20"
-          >
-            Customer view ↗
-          </Link>
+
           <button
             onClick={() => {
               setPanel('build')
