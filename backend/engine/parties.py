@@ -1,3 +1,4 @@
+import asyncio
 """HTTP adapters to the counterparties. In the sandbox these resolve to /sandbox/*; in a bank, set
 CBS_URL / NPCI_URL / BENE_URL / ACQUIRER_URL / NCRP_URL to the bank's integration endpoints."""
 
@@ -34,9 +35,21 @@ async def call(run: Run, node: str, party: str, method: str, path: str, *, title
     shown = path + (("?" + "&".join(f"{k}={v}" for k, v in params.items())) if params else "")
     sid = await run.step(node, "call", title, f"{method} {shown}", status="running", party=party,
                          http={"method": method, "path": shown, "body": body}, pause=0.9)
-    t0 = time.monotonic()
-    resp = await _client.request(method, url, params=params, json=body)
-    latency = int((time.monotonic() - t0) * 1000)
+    for attempt in (1, 2):  # one retry with backoff on gateway errors; idempotent on the counterparty side
+        t0 = time.monotonic()
+        try:
+            resp = await _client.request(method, url, params=params, json=body)
+        except httpx.TimeoutException:
+            resp = httpx.Response(504, json={"detail": f"{PARTIES[party]['label']} did not respond in time"})
+        latency = int((time.monotonic() - t0) * 1000)
+        if resp.status_code < 500 or attempt == 2:
+            break
+        detail = (resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}).get("detail", resp.text)
+        await run.update(sid, "warn", pause=0.3, result=f"HTTP {resp.status_code} · {detail} · retrying in 1.5s",
+                         http={"status": resp.status_code, "latency_ms": latency})
+        await asyncio.sleep(1.5)
+        sid = await run.step(node, "call", f"{title} (retry)", f"{method} {shown}", status="running", party=party,
+                             http={"method": method, "path": shown, "body": body}, pause=0.3)
     try:
         data = resp.json()
     except ValueError:

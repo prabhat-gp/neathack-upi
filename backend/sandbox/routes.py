@@ -188,8 +188,16 @@ def npci_raise(cmp: Complaint):
 
 # ───────────── Beneficiary banks ─────────────
 
+def _fault(party: str, key: str) -> None:
+    f = q1("SELECT * FROM sandbox_faults WHERE party=? AND key=? AND remaining>0", party, key)
+    if f:
+        ex("UPDATE sandbox_faults SET remaining=remaining-1 WHERE party=? AND key=?", (party, key))
+        raise HTTPException(f["status"], f["message"])
+
+
 @router.get("/bene/credits/{utr}")
 def bene_credit(utr: str):
+    _fault("bene", utr)
     c = _need(q1("SELECT * FROM bene_credits WHERE utr=?", utr), "Credit record")
     acct = q1("SELECT bank, holder_name FROM bene_accounts WHERE vpa=?", c["vpa"])
     return {**c, **acct}

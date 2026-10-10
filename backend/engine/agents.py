@@ -26,6 +26,9 @@ How to work:
 - If Crustdata tools (mcp__crustdata__*) are available, use them for outside intelligence, at most two calls:
   for suspected fraud, search the web/social posts for the payee handle or scam pattern (e.g. "KYC update" UPI collect scams);
   for merchant payments, confirm the merchant is a real registered business. Quote what you found in the summary.
+- Counterparties fail. Tools already retry once. If a party is still unreachable, try it at most once more, then decide on
+  the evidence you have: NPCI is the system of record for whether the credit leg completed (TCC). Never wait out a deadline
+  for a broken API; state what was unreachable in the evidence.
 
 Case types:
 P2P_NOT_CREDITED — we are remitter; person-to-person; credit not confirmed (DEEMED/TIMEOUT/FAILED, no TCC); not reversed.
@@ -103,11 +106,20 @@ async def _investigator_rules(run: Run) -> dict:
                            f"({inw['suspense']['id']}) and NPCI still shows it as deemed. Nobody has returned it."}
 
     txn, cr, _ = await asyncio.gather(T.get_bank_transaction(run, n, {"utr": utr}), T.beneficiary_credit_confirmation(run, n, {"utr": utr}),
-                                      T.get_customer_profile(run, n, {"customer_id": cid}))
+                                      T.get_customer_profile(run, n, {"customer_id": cid}), return_exceptions=True)
+    if isinstance(txn, Exception):
+        raise txn
     payee = txn["counterparty_vpa"]
     ev = [{"source": "Core banking", "fact": f"{rs(txn['amount_paise'])} debited to {payee} ({txn['kind']}, {txn['mode'].lower()}) at {txn['initiated_at'][:16].replace('T', ' ')}"},
-          {"source": "NPCI", "fact": f"credit {st['credit_leg']}{' with TCC' if st['tcc'] else ', no TCC'}, reversal {st['reversal_leg']}"},
-          {"source": cr["bank"], "fact": f"credited at {cr['credited_at'][11:19]} · ref {cr['credit_ref']}" if cr["status"] == "CREDITED" else "amount not credited"}]
+          {"source": "NPCI", "fact": f"credit {st['credit_leg']}{' with TCC' if st['tcc'] else ', no TCC'}, reversal {st['reversal_leg']}"}]
+    if isinstance(cr, Exception):
+        await run.step(n, "think", "Beneficiary bank unreachable",
+                       f"{st['beneficiary_bank']} failed twice ({cr}). NPCI is the system of record for the credit leg: "
+                       f"{st['credit_leg']}, no TCC. The deadline does not wait for their API, so I decide on NPCI evidence "
+                       "and the chargeback will recover the money from them.", status="warn", pause=0.6)
+        ev.append({"source": st["beneficiary_bank"], "fact": "unreachable after retry; decided on NPCI evidence"})
+    else:
+        ev.append({"source": cr["bank"], "fact": f"credited at {cr['credited_at'][11:19]} · ref {cr['credit_ref']}" if cr["status"] == "CREDITED" else "amount not credited"})
     if {p["type"] for p in txn["related_postings"]} & {"REVERSAL", "MERCHANT_REFUND"}:
         return {"case_type": "ALREADY_RESOLVED", "disputed_utr": utr, "evidence": ev, "claim_matches_evidence": False,
                 "summary": "The customer has already been refunded for this UTR. Nothing outstanding."}
@@ -133,8 +145,10 @@ async def _investigator_rules(run: Run) -> dict:
 
     if not credited:
         return {"case_type": "P2P_NOT_CREDITED", "disputed_utr": utr, "evidence": ev, "claim_matches_evidence": True,
-                "summary": f"{rs(txn['amount_paise'])} left the customer's account at {txn['initiated_at'][11:16]}. {cr['bank']} never "
-                           f"credited {cr['holder_name']}: NPCI shows the payment deemed after a timeout, with no credit confirmation and no return."}
+                "summary": f"{rs(txn['amount_paise'])} left the customer's account at {txn['initiated_at'][11:16]}. "
+                           + (f"{st['beneficiary_bank']}'s API was down, so this rests on NPCI: " if isinstance(cr, Exception)
+                              else f"{cr['bank']} never credited {cr['holder_name']}: NPCI shows ")
+                           + "the payment deemed after a timeout, with no credit confirmation and no return."}
 
     await run.step(n, "think", "Money was delivered", "Credit is confirmed. Before closing, rule out fraud on the payee.", pause=0.5)
     acct, ncrp = await asyncio.gather(T.beneficiary_account_profile(run, n, {"vpa": payee}), T.ncrp_lookup(run, n, {"vpa": payee}))

@@ -53,6 +53,15 @@ def build_cases() -> list[dict]:
             "customer_id": "sunita", "customer_name": "Sunita Rao", "utr": "610045221587", "amount_paise": 4999900,
             "complaint": "A man said he was from the bank's KYC team and my account would be blocked. I approved a request and entered my PIN. ₹49,999 is gone.",
         },
+        {
+            "id": "bene-outage", "tat_days": 1,
+            "title": "Other bank's API is down",
+            "subtitle": "₹3,500 stuck, Kaveri Bank not answering",
+            "trigger": "complaint",
+            "role": "Remitter bank", "rule": "RBI 4(a) · T+1",
+            "customer_id": "neha", "customer_name": "Neha Kapoor", "utr": "610045225530", "amount_paise": 350000,
+            "complaint": "Sent ₹3,500 to Priya last night for the trip. App says pending, money is cut from my account, she got nothing.",
+        },
     ]
 
 

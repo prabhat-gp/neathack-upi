@@ -66,6 +66,8 @@ CREATE TABLE acq_orders (
 CREATE TABLE acq_refunds (id TEXT PRIMARY KEY, utr TEXT, amount_paise INTEGER, status TEXT, created_at TEXT);
 
 CREATE TABLE ncrp_reports (ack_no TEXT PRIMARY KEY, vpa TEXT, utr TEXT, amount_paise INTEGER, reported_by TEXT, created_at TEXT);
+-- Live incidents on a counterparty: the next `remaining` calls for this key fail with `status`.
+CREATE TABLE sandbox_faults (party TEXT, key TEXT, remaining INTEGER, status INTEGER, message TEXT, PRIMARY KEY (party, key));
 """
 
 
@@ -130,6 +132,7 @@ def _seed(c: sqlite3.Connection, n: datetime) -> None:
         ("ananya", "Ananya Iyer", "SAHY00023456", "ananya.iyer@sahyadri", 1265000, "ACTIVE", 2200, 400, 0),
         ("vikram", "Vikram Singh", "SAHY00056789", "vikram.singh@sahyadri", 6710000, "ACTIVE", 1300, 1100, 0),
         ("sunita", "Sunita Rao", "SAHY00045678", "sunita.rao@sahyadri", 15240000, "ACTIVE", 5100, 700, 0),
+        ("neha", "Neha Kapoor", "SAHY00078901", "neha.kapoor@sahyadri", 2210000, "ACTIVE", 900, 300, 0),
     ]
     for cid, name, acct, vpa, bal, status, opened, device, disputes in customers:
         since = iso(n - timedelta(days=12)) if status == "CLOSED" else iso(n - timedelta(days=opened))
@@ -210,6 +213,12 @@ def _seed(c: sqlite3.Connection, n: datetime) -> None:
         c.execute("INSERT INTO ncrp_reports VALUES (?,?,?,?,?,?)",
                   (f"NCRP-31{i:05d}", "kyc.update.help@kaveri", None, 1500000 + i * 230000, "other victim",
                    iso(n - timedelta(hours=40 - i * 4))))
+
+    # Scene 6 · outage: ₹3,500 deemed last night AND Kaveri Bank's credit-confirmation API is down (gateway timeouts).
+    outward("neha", "610045225530", 350000, "priya.m@kaveri", _at(n, 1, 22, 5), credit="DEEMED",
+            reason="Kaveri Bank did not respond within switch timeout; marked deemed approved", overall="DEEMED", narration="To Priya")
+    c.execute("INSERT INTO sandbox_faults VALUES (?,?,?,?,?)",
+              ("bene", "610045225530", 3, 504, "Kaveri Bank CBS gateway timeout (upstream did not respond in 15s)"))
 
     for cid, _, a, *_ in customers:
         spent = c.execute("SELECT COALESCE(SUM(amount_paise),0) FROM cbs_transactions WHERE account_no=?", (a,)).fetchone()[0]
