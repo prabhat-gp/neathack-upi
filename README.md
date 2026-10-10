@@ -22,7 +22,6 @@ cd frontend && npm install
 NEXT_PUBLIC_API_URL=http://localhost:8000 npm run build && npm start -- -p 3001
 ```
 
-Or `docker compose up --build` (frontend on :3000, backend on :8000).
 
 ## Architecture
 
@@ -78,12 +77,19 @@ layer, with the same request and response shapes as `sandbox/routes.py`.
 The agents run on **OpenAI Codex using the team's own ChatGPT plan** (neatHack provides no model credits). The server
 holds its own Codex login; visitors only use the web app.
 
+On the server (one EC2 instance, no containers):
+
 ```bash
-docker compose up -d --build
-# one time per server: sign the server in to our ChatGPT plan with a device code (open the URL, enter the code)
-docker compose exec backend codex login --device-auth
-docker compose exec backend codex login status   # -> Logged in using ChatGPT
+npm install -g @openai/codex
+codex login --device-auth          # one time: sign the server in to our ChatGPT plan (open the URL, enter the code)
+codex login status                 # -> Logged in using ChatGPT
+
+cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+cp .env.example .env               # fill in neatlogs / Crustdata keys
+.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+
+cd ../frontend && npm ci && NEXT_PUBLIC_API_URL=http://<server>:8000 npm run build && npm start -- -p 3000
 ```
 
-The login lives in the `agent-data` volume (`/data/codex`), so rebuilds keep it. Without a login the app falls back to
-the rules engine and says so in the UI. `RUNS_PER_VISITOR_PER_HOUR` and `MAX_CONCURRENT_LLM_RUNS` ration the plan.
+Without a Codex login the app falls back to the rules engine and says so in the UI.
+`RUNS_PER_VISITOR_PER_HOUR` and `MAX_CONCURRENT_LLM_RUNS` ration the plan across visitors.
