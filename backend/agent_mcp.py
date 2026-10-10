@@ -11,14 +11,17 @@ import uuid
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
+import tracing
+
 router = APIRouter()
 SESSIONS: dict[str, dict] = {}
 
 
-def open_session(run, node: str, tools: list, submit: str, validate) -> tuple[str, dict]:
+def open_session(run, node: str, tools: list, submit: str, validate, parent=None) -> tuple[str, dict]:
     sid = uuid.uuid4().hex
     box: dict = {}
-    SESSIONS[sid] = {"run": run, "node": node, "tools": {t.name: t for t in tools}, "submit": submit, "validate": validate, "box": box}
+    SESSIONS[sid] = {"run": run, "node": node, "tools": {t.name: t for t in tools}, "submit": submit, "validate": validate,
+                     "box": box, "parent": parent}
     return sid, box
 
 
@@ -36,6 +39,14 @@ def _text(out, is_error=False):
 
 
 async def _call(s: dict, name: str, args: dict) -> dict:
+    kind = "GUARDRAIL" if name == s["submit"] and s["validate"] else "TOOL"
+    with tracing.child(name, kind, parent=s["parent"], inp=args, **{"tool.name": name}) as sp:
+        res = await _call_tool(s, name, args)
+        tracing.finish(sp, res["content"][0]["text"], error=res["content"][0]["text"] if res["isError"] else None)
+        return res
+
+
+async def _call_tool(s: dict, name: str, args: dict) -> dict:
     run, node = s["run"], s["node"]
     if name == s["submit"]:
         problem = s["validate"](args) if s["validate"] else None

@@ -7,6 +7,7 @@ import time
 import httpx
 
 import config
+import tracing
 
 from .run import Run
 
@@ -30,6 +31,19 @@ class PartyError(Exception):
 
 async def call(run: Run, node: str, party: str, method: str, path: str, *, title: str,
                params: dict | None = None, body: dict | None = None, summarize=None) -> dict:
+    with tracing.child(f"{PARTIES[party]['label']} · {method} {path}", "TOOL", inp={k: v for k, v in {"params": params, "body": body}.items() if v} or None,
+                       **{"tool.name": f"{PARTIES[party]['label']}: {title}", "http.method": method, "http.route": path}) as sp:
+        try:
+            data = await _call(run, node, party, method, path, title=title, params=params, body=body, summarize=summarize)
+        except PartyError as e:
+            tracing.finish(sp, e.body, error=f"{PARTIES[party]['label']} returned {e.status}")
+            raise
+        tracing.finish(sp, data)
+        return data
+
+
+async def _call(run: Run, node: str, party: str, method: str, path: str, *, title: str,
+                params: dict | None, body: dict | None, summarize) -> dict:
     url = config.PARTY_URLS[party] + path
     run.calls.append(party)
     shown = path + (("?" + "&".join(f"{k}={v}" for k, v in params.items())) if params else "")

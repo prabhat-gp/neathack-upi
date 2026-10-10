@@ -143,7 +143,9 @@ async def orchestrate(run: Run):
         def check(inp):
             return None if "findings" in run.facts else "Dispatch the Investigator before closing."
 
-        closing = await run_agent(run, O, ORCHESTRATOR_SYSTEM, tools, task, "close_case", validate=check)
+        with tracing.child("orchestrator", "AGENT", inp=task, **{"case.id": c["id"], "case.utr": c["utr"]}) as sp:
+            closing = await run_agent(run, O, ORCHESTRATOR_SYSTEM, tools, task, "close_case", validate=check)
+            tracing.finish(sp, closing)
     else:
         if sweep:
             await run.step(O, "think", "Reconciliation sweep", f"Match NPCI's settlement file for {c['settlement_date']} against our switch and core banking. "

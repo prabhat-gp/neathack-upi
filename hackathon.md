@@ -13,19 +13,19 @@ queries every party → Policy computes the deadline and what is owed → Resolv
 engine re-verifies and executes (refund, return, chargeback, lien, cybercrime report) or holds for one-click human approval.
 
 ## Team
-_Pending: builder to choose names/handles to publish._
+prabhat-gp (github.com/prabhat-gp)
 
 ## Stack
 | Part | What is actually used |
 |---|---|
-| Agents | Python, FastAPI, Claude via the **Claude Agent SDK** (Claude Code token), tools served from an in-process MCP server (`backend/engine/agent_sdk.py`); Anthropic SDK loop kept for API-key/Bedrock (`backend/engine/llm.py`). The hackathon AWS account allows EC2/Lambda/IAM only, so Bedrock is not used. |
+| Agents | Python, FastAPI. Model runtime: **OpenAI Codex CLI on the team's own ChatGPT plan** (`codex exec --json`, ChatGPT login, no API key) — `backend/engine/agent_codex.py`. Each agent's tools are served to Codex from a per-agent MCP endpoint (`backend/agent_mcp.py`). Building/testing on `gpt-6-luna` (low effort); a stronger model is planned for the judged deployment. neatHack provides no model credits (AWS account excludes Bedrock; confirmed by organisers on Discord). |
 | Crustdata | Hosted MCP server given to the Investigator for live web/company intel; calls shown as a party in the console |
 | DisputePro MCP | Our own MCP server at `/mcp` (`desk_metrics`, `recent_runs`, `open_exceptions`) and `/api/metrics`, fed by a run ledger (tokens, provider-reported cost, time, deadline, penalty) — for cfo.ai and Claude Code |
 | Agent fallback | Deterministic rules brain with identical tools/outputs, used only when no LLM credentials are set |
 | Counterparties | Sandbox CBS, NPCI switch + UDIR, beneficiary banks, merchant acquirer, NCRP portal — SQLite state, HTTP APIs (`backend/sandbox/`) |
 | Frontend | Next.js 14, Tailwind: `/` landing page, `/console` exceptions desk |
-| neatlogs | SDK wired (`backend/tracing.py`): workflow + per-agent spans, Anthropic/Bedrock auto-instrumentation — **pending API key** |
-| Entire | CLI 0.11.4 enabled for Claude Code (`entire enable --agent claude-code`); GitHub repo + mirror pending |
+| neatlogs | `backend/tracing.py`: one trace per case — WORKFLOW > AGENT (orchestrator, investigator, policy, resolver) > LLM (each Codex turn: model, prompt, output, token counts incl. cached/reasoning) and TOOL (each tool call) > TOOL (each counterparty HTTP call, errors marked). Manual spans because model calls happen inside the Codex process. |
+| Entire | CLI 0.11.4 enabled for Claude Code; build session attached as checkpoint `01M4J7A2GM3XCY6WDZW1VCH61D` and pushed to the public repo; entire.io mirror pending |
 | cfo.ai | **Pending**: business plan via cfo.ai MCP server (`https://api.cfo.ai/mcp`) |
 
 ## Build log
@@ -48,6 +48,15 @@ _Pending: builder to choose names/handles to publish._
   Investigator, the DisputePro MCP server + run ledger, and scene 6 (beneficiary bank API outage).
 - **Tests that actually ran:** MCP `tools/list` and `desk_metrics` over HTTP; scene 6 on the rules brain (504 → visible retry →
   504 → decided on NPCI evidence → refunded with 12h 28m to spare, ₹0 penalty). The Agent SDK path has **not** run yet (token pending).
+
+- Midday (2026-10-10): switched the agent runtime to Codex on our ChatGPT plan after organisers confirmed teams use
+  their own model access. First Codex runs of scene 6 (bank API outage): with gpt-5.5 the Investigator chose an extra
+  retry and got "not credited"; with gpt-6-luna it decided on NPCI evidence after two 504s. Both refunded before T+1, ₹0
+  penalty (~70–115 s per case, ~300k input tokens mostly Codex's own instructions, largely cached).
+- neatlogs: first traces received. Fixed two tracing bugs found in the dashboard: spans went to the OTel global tracer
+  instead of neatlogs' isolated provider, and child spans did not nest (neatlogs resolves parents from its own context key).
+  Verified nesting WORKFLOW > AGENT > TOOL in the dashboard with a rules-mode run.
+- Public repo created: github.com/prabhat-gp/neathack-upi. Docker removed (plain processes on one EC2 instance planned).
 
 ## Demo
 _Pending: URL and video. Local: backend `uvicorn main:app --port 8000`, frontend `npm run build && npm start -- -p 3001`._

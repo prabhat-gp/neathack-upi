@@ -13,6 +13,7 @@ import time
 
 import agent_mcp
 import config
+import tracing
 
 from .run import Run
 from .tools import Tool
@@ -46,7 +47,8 @@ def _cmd(sid: str, system: str, external: bool) -> list[str]:
 async def run_agent_codex(run: Run, node: str, system: str, tools: list[Tool], task: str, submit: str,
                           validate=None, external: bool = False) -> dict:
     external = external and bool(config.CRUSTDATA_API_KEY)
-    sid, box = agent_mcp.open_session(run, node, tools, submit, validate)
+    parent = tracing.current_context()  # the AGENT span; tool calls and LLM turns hang under it
+    sid, box = agent_mcp.open_session(run, node, tools, submit, validate, parent)
     rules = GROUND_RULES.format(extra=' and "crustdata" for outside intelligence' if external else "", submit=submit)
     prompt = f"{system}\n\n{rules}\n\n---\n{task}"
     env = {**os.environ, "CRUSTDATA_API_KEY": config.CRUSTDATA_API_KEY}
@@ -59,7 +61,8 @@ async def run_agent_codex(run: Run, node: str, system: str, tools: list[Tool], t
     await proc.stdin.drain()
     proc.stdin.close()
 
-    turn, tid, t0 = 0, None, 0.0
+    turn, tid, t0, t0_ns = 0, None, 0.0, 0
+    said: list[str] = []
     ext: dict[str, tuple[str, float]] = {}
     errors: list[str] = []
     try:
@@ -72,7 +75,7 @@ async def run_agent_codex(run: Run, node: str, system: str, tools: list[Tool], t
             it = item.get("type")
             if et == "turn.started":
                 turn += 1
-                t0 = time.monotonic()
+                t0, t0_ns, said = time.monotonic(), time.time_ns(), []
                 tid = await run.step(node, "turn", f"Turn {turn}", config.CODEX_MODEL, status="running", pause=0)
             elif et == "item.started" and it == "mcp_tool_call":
                 server, name = item.get("server", ""), item.get("tool", "")
@@ -90,6 +93,7 @@ async def run_agent_codex(run: Run, node: str, system: str, tools: list[Tool], t
                                  http={"status": "error" if err else 200, "latency_ms": int((time.monotonic() - start) * 1000)})
             elif et == "item.completed" and it in ("reasoning", "agent_message") and item.get("text", "").strip():
                 text = item["text"].strip()
+                said.append(text)
                 headline_only = text.startswith("**") and text.endswith("**") and "\n" not in text  # summary title, no content
                 if not headline_only and not (it == "agent_message" and "result" in box):
                     await run.step(node, "think", "Reasoning", text, status="ok", pause=0)
@@ -99,6 +103,10 @@ async def run_agent_codex(run: Run, node: str, system: str, tools: list[Tool], t
                 u = ev.get("usage") or {}
                 inp, out = u.get("input_tokens", 0), u.get("output_tokens", 0) + u.get("reasoning_output_tokens", 0)
                 await run.add_usage(node, inp, out)
+                tracing.llm_turn(parent, t0_ns, time.time_ns(), agent=node, turn=turn, model=config.CODEX_MODEL,
+                                 prompt=prompt if turn == 1 else None, output="\n\n".join(said),
+                                 input_tokens=inp, output_tokens=out, cached=u.get("cached_input_tokens", 0),
+                                 reasoning=u.get("reasoning_output_tokens", 0))
                 if tid:
                     await run.update(tid, "ok", result=f"{time.monotonic() - t0:.1f}s · {inp + out:,} tokens")
             elif et in ("turn.failed", "error"):
