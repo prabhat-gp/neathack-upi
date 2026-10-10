@@ -1,14 +1,16 @@
 # neatHack build log — DisputePro
 
 ## Project
-**DisputePro** — a master orchestrator and three AI agents that clear UPI payment exceptions before the RBI deadline.
+**DisputePro** — an Intake agent, a master orchestrator and three specialist AI agents that clear UPI payment exceptions
+before the RBI deadline and reply to the customer on the channel they used.
 
 **Problem:** Most failed UPI payments auto-reverse. The ones that don't — deemed payments with no credit confirmation,
 inward credits stuck in suspense, merchant non-confirmations, disputed "not received" claims — are worked by hand across
 core banking, NPCI and the other bank. Miss T+1 (T+5 for merchant payments) and the bank owes ₹100/day per transaction
 (RBI circular DPSS.CO.PD No.629/02.01.014/2019-20); late returns lose chargebacks (NPCI UPI/OC/213/2024-25).
 
-**What the agent does end to end:** picks up an exception (reconciliation sweep or customer complaint) → Investigator
+**What the agent does end to end:** a case arrives (UPI-app complaint via UDIR, free-text chat, or the nightly reconciliation
+sweep) → Intake finds the payment or asks the customer → Investigator
 queries every party → Policy computes the deadline and what is owed → Resolver plans actions → a guardrailed execution
 engine re-verifies and executes (refund, return, chargeback, lien, cybercrime report) or holds for one-click human approval.
 
@@ -22,7 +24,7 @@ prabhat-gp (github.com/prabhat-gp)
 | DisputePro MCP | Our own MCP server at `/mcp` behind a bearer token (`desk_metrics`, `recent_runs`, `market_facts`, `open_exceptions`), fed by a run ledger (tokens, time, deadline, penalty) — the single surface cfo.ai and Claude Code read from |
 | Agent fallback | Deterministic rules brain with identical tools/outputs, used only when no LLM credentials are set |
 | Counterparties | Sandbox CBS, NPCI switch + UDIR, beneficiary banks, merchant acquirer, NCRP portal — SQLite state, HTTP APIs (`backend/sandbox/`) |
-| Frontend | Next.js 14, Tailwind: `/` landing page, `/console` exceptions desk |
+| Frontend | Next.js 14, Tailwind: `/` landing page, `/app` customer UPI app, `/console` live ops desk |
 | neatlogs | `backend/tracing.py`: one trace per case — WORKFLOW > AGENT (orchestrator, investigator, policy, resolver) > LLM (each Codex turn: model, prompt, output, token counts incl. cached/reasoning) and TOOL (each tool call) > TOOL (each counterparty HTTP call, errors marked). Manual spans because model calls happen inside the Codex process. |
 | Entire | CLI 0.11.4 with Claude Code hooks; every commit on `qa` carries an Entire-Checkpoint trailer and checkpoints sync to GitHub; repo mirrored on entire.io (US East + Mumbai). **Graph** v0.4.0 indexes the repo (449 symbols, 1,685 relations) for code search/impact; **Brain** 0.1.0 distils build sessions into project memory (MCP server registered in `.mcp.json`); 6 **Trail runners** (review, risk, security, drift, confidence, summary) committed for qa→main reviews |
 | cfo.ai | **Pending**: business plan via cfo.ai MCP server (`https://api.cfo.ai/mcp`) |
@@ -87,10 +89,9 @@ prabhat-gp (github.com/prabhat-gp)
 _Pending: URL and video. Local: backend `uvicorn main:app --port 8000`, frontend `npm run build && npm start -- -p 3001`._
 
 ## Known limitations and next steps
-- Agents have not yet run on a real LLM (AWS credits pending). Until then the UI labels every agent "Rules mode · no LLM".
 - Counterparties are a sandbox; no real NPCI or bank connectivity.
-- neatlogs, Entire and cfo.ai integrations are not complete (see Submission).
-- No failure-recovery run recorded yet (judging asks for one).
+- cfo.ai business plan not built yet; neatlogs detections/evals not set up yet.
+- Failure recovery ran (bank API outage scene: 504 → retry → decided on NPCI evidence) but is not written up for submission yet.
 - No "before vs after" agent improvement evidence yet.
 
 ## Submission
