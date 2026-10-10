@@ -1,74 +1,124 @@
 'use client'
-
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { NodeId, RunState } from '@/lib/run'
-import { Icon, NODE_META } from '../meta'
-import Feed from './Feed'
+import { Icon, NODE_META, PARTY_META } from '../meta'
 
-const ASK: Partial<Record<NodeId, string>> = {
-  intake: 'Reads the customer’s message in any language and works out which payment they mean.',
-  orchestrator: 'Reads the case and decides which agent works it next, based only on evidence.',
-  investigator: 'Asks NPCI, core banking and the other bank what really happened to the money.',
-  policy: 'Applies the RBI rule: the deadline, the time left and what is owed.',
-  resolver: 'Scores fraud risk and plans the smallest set of actions that closes the case.',
-}
-
-export default function AgentFocus({ node, run, model }: { node: NodeId; run: RunState; model: string | null }) {
-  const m = NODE_META[node]
-  const steps = run.steps.filter((s) => s.node === node)
-  const st = run.nodes[node]
-  const usage = run.usage[node]
-  const calls = steps.filter((s) => s.kind === 'call').length
-  const running = st.status === 'running'
-
-  const scroller = useRef<HTMLDivElement>(null)
-  const inner = useRef<HTMLDivElement>(null)
-  const follow = useRef(true)
-  useLayoutEffect(() => {
-    if (scroller.current && follow.current) scroller.current.scrollTop = scroller.current.scrollHeight
-  }, [steps.length, node])
+export default function AgentFocus({
+  node,
+  run,
+  model,
+  follow,
+}: {
+  node: NodeId
+  run: RunState
+  model: string | null
+  follow: boolean
+}) {
+  const meta = NODE_META[node],
+    state = run.nodes[node],
+    usage = run.usage[node]
+  const steps = run.steps.filter((s) => s.node === node && s.kind !== 'think')
+  const activity = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    follow.current = true
-  }, [node])
-  useEffect(() => {
-    const el = scroller.current
-    if (!el || !inner.current) return
-    const ro = new ResizeObserver(() => follow.current && (el.scrollTop = el.scrollHeight))
-    ro.observe(inner.current)
-    return () => ro.disconnect()
-  }, [])
-
+    if (follow && activity.current)
+      activity.current.scrollTo({
+        top: activity.current.scrollHeight,
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+      })
+  }, [follow, steps.length, run.elapsedMs])
   return (
-    <section key={node} className="step-in flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <header className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
-        <span className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-xl ${m.chip}`}>
-          <Icon name={node} className="h-5 w-5" />
-          {running && <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-ping rounded-full ${m.dot}`} />}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[15px] font-semibold text-slate-900">{m.label}</h2>
-            <span className="rounded bg-violet-600 px-1.5 py-px text-[9px] font-bold tracking-wider text-white">AI AGENT</span>
-            {running && <span className="text-[11.5px] font-medium text-violet-600">working…</span>}
+    <section className="flex min-h-0 flex-1 flex-col bg-white">
+      <header className="border-b p-5">
+        <div className="flex items-center gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
+            <Icon
+              name={node === 'executor' ? 'guard' : node}
+              className="h-5 w-5"
+            />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold">{meta.label}</h2>
+            <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">
+              {meta.ai
+                ? model
+                  ? `AI · ${model}`
+                  : 'Rules fallback'
+                : 'Controlled workflow'}{' '}
+              ·{' '}
+              {state.status === 'idle'
+                ? 'Not started'
+                : state.status === 'skipped'
+                  ? 'Not required'
+                  : state.status}
+            </p>
           </div>
-          <p className="truncate text-[12px] text-slate-500">{ASK[node]}</p>
         </div>
-        <div className="hidden shrink-0 text-right sm:block">
-          <div className="font-mono text-[11px] font-semibold text-slate-700">{model ?? 'rules engine'}</div>
-          <div className="font-mono text-[10.5px] text-slate-400">
-            {usage ? `${usage.llm_calls} AI turn${usage.llm_calls === 1 ? '' : 's'} · ` : ''}{calls} system call{calls === 1 ? '' : 's'}
-            {st.durationMs != null ? ` · ${(st.durationMs / 1000).toFixed(0)}s` : ''}
+        <p className="mt-4 text-sm leading-6 text-slate-500">{meta.role}</p>
+        {state.activity && (
+          <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600">
+            {state.activity}
           </div>
-        </div>
+        )}
+        {usage && (
+          <p className="mt-3 text-[10px] text-slate-400">
+            {model} · {usage.llm_calls} model turns ·{' '}
+            {state.durationMs != null
+              ? `${(state.durationMs / 1000).toFixed(1)}s`
+              : 'In progress'}
+          </p>
+        )}
       </header>
-      <div ref={scroller} onScroll={(e) => {
-        const el = e.currentTarget
-        follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60
-      }} className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-3">
-        <div ref={inner} className="mx-auto max-w-3xl space-y-1.5">
-          {steps.length === 0 && <div className="py-10 text-center text-[12.5px] text-slate-400">Waiting for the orchestrator to hand over…</div>}
-          <Feed steps={steps} llm={!!model} />
-        </div>
+      <div
+        ref={activity}
+        className="min-h-0 flex-1 space-y-3 overflow-auto p-4"
+      >
+        {steps.length === 0 && (
+          <p className="py-5 text-sm leading-7 text-slate-400">
+            {state.status === 'skipped'
+              ? 'This agent was not needed for the route taken.'
+              : 'Assignments, findings and tool results appear here as they are recorded.'}
+          </p>
+        )}
+        {steps.map((s) => (
+          <details
+            key={s.id}
+            className={`rounded-xl border p-3 ${s.status === 'bad' ? 'border-rose-200 bg-rose-50/30' : s.kind === 'decision' ? 'border-blue-200 bg-blue-50/40' : 'border-slate-200'}`}
+            open={
+              s.kind === 'decision' ||
+              s.kind === 'finding' ||
+              s.status === 'running'
+            }
+          >
+            <summary className="cursor-pointer text-xs font-medium leading-6">
+              <span
+                className={`mr-2 inline-block h-1.5 w-1.5 rounded-full ${s.status === 'bad' ? 'bg-rose-500' : s.status === 'running' ? 'bg-blue-500' : s.status === 'warn' ? 'bg-amber-500' : 'bg-emerald-500'}`}
+              />
+              {s.kind === 'turn'
+                ? `Model ${s.status === 'running' ? 'working' : 'responded'} · ${s.title}`
+                : s.title}
+            </summary>
+            <p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-slate-600">
+              {s.result || s.detail}
+            </p>
+            <p className="mt-3 text-[10px] text-slate-400">
+              {(s.t / 1000).toFixed(1)}s ·{' '}
+              {s.party ? PARTY_META[s.party].short : s.kind} · {s.status}
+              {s.http?.status ? ` · HTTP ${s.http.status}` : ''}
+            </p>
+            {s.data != null && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-[10px] font-medium text-blue-600">
+                  Inspect source response
+                </summary>
+                <pre className="mt-2 overflow-auto rounded-lg bg-slate-50 p-3 text-[10px]">
+                  {JSON.stringify(s.data, null, 2)}
+                </pre>
+              </details>
+            )}
+          </details>
+        ))}
       </div>
     </section>
   )

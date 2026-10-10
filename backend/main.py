@@ -28,6 +28,9 @@ _mcp_app = mcp_server.http_app()
 
 @contextlib.asynccontextmanager
 async def lifespan(_app):
+    # An interrupted process cannot safely resume uncheckpointed financial work.
+    # Preserve its evidence and route it to a person instead of silently rerunning it.
+    db.ex("UPDATE desk_cases SET status='ESCALATED', headline='Server restarted — review recorded actions before continuing' WHERE status IN ('WORKING','NEEDS_YOU')")
     loop = asyncio.create_task(supervisor.loop())  # works the case queue on its own
     async with mcp_server.server.session_manager.run():
         yield

@@ -85,8 +85,69 @@ prabhat-gp (github.com/prabhat-gp)
     complaint → refunded ₹2,000 with 9h 29m to spare (84s). Found and fixed: no reply when the Orchestrator closed
     without the Resolver; reply written in Marathi to a Hindi complaint (language rule tightened).
 
+### Agent-first product rebuild · 2026-10-10
+- Rebuilt the landing page, customer help and bank desk with a shared navy/blue design system.
+- Bank desk: case search and priority filters; stable, interactive agent graph drawn from recorded handoffs; separate
+  execution-engine node; event-driven active connections; agent/task inspection; source evidence filtering; recorded-event
+  replay; customer thread; reviewer decisions; action results and before/after bank records. Reduced-motion and keyboard support.
+- Customer: payment issue shortcuts plus free text; sandbox session controls outside complaint intake; per-case conversations;
+  direct link to the corresponding bank case; confirmed actions and specialist review requests; responsive layout and dialog focus trap.
+- Backend: explicit case-scoped replies, recon independent of synthetic traffic, persisted events and full outcomes, interrupted
+  cases escalated on restart, required decline reason, revalidation at approval, and partial failures retain confirmed actions.
+- Fixed the sandbox reset attempting to drop SQLite's internal sqlite_sequence table, and closed run-ledger connections.
+- Tests actually run: eight isolated integration tests passed (refund + replay + duplicate prevention, clarification ownership,
+  approval, changed-evidence approval pause, decline reason, customer review, partial execution, autonomous recon).
+- Browser checks actually run in headless Chrome: customer payment complaint → linked agent desk; approval → execution receipt;
+  evidence filter; replay slider; customer review request. No page errors. No horizontal page overflow at 390, 768, 1024 or 1440 px.
+- Real Codex check: Hindi free-text complaint, gpt-6-luna low, isolated sandbox. Intake identified the ₹5,000 payment;
+  Investigator → Policy → Resolver → executor confirmed refund + chargeback. Customer response remained Hindi.
+- Sponsor limitations remain explicit: cfo.ai pending; Crustdata absent. Model-driven results are not mocked for the UI.
+- Final production build: `NEXT_PUBLIC_API_URL=http://localhost:8012 npm run build` passed, including TypeScript checking
+  and static generation for `/`, `/app`, and `/console`. Local production preview runs on port 3011; the isolated real-Codex
+  backend runs on port 8012. The original services on 3001/8000 were not restarted.
+
+### Demo handoff and agent visibility · 2026-10-10
+
+- Customer Send now opens a short Watch agents dialog before any complaint request. Back to message preserves the draft.
+  Watch agents navigates to the bank desk, where the complaint is submitted once and its returned case is selected.
+  The browser uses a temporary session-storage draft; direct API submissions and the server queue remain automatic.
+- Added editable sandbox stories for suspected KYC fraud (Sunita), double merchant payment (Ananya), and an unresponsive
+  beneficiary bank (Neha). These supply complaint text and account context, not predetermined outcomes.
+- Added small model labels to agent cards and model turns to the inspection panel alongside tool calls and findings.
+  Recorded run metadata supplies the model where available; rules fallback remains explicit.
+- Moved Follow live and Case details beside the customer name. Grouped thread, actions/receipt, evidence and available
+  trace link under Case details. Removed the map-size button; the workflow fits its container automatically.
+- Fixed the workflow scroll container and repeat-click recentering. Selecting an agent pauses following; Follow live
+  restores the active agent. Completed runs offer Latest outcome. The activity panel follows incoming work.
+- **Checks actually run:** production build with `NEXT_PUBLIC_API_URL=http://localhost:8012` passed, including type checking
+  and static generation. Headless Chrome verified no channel request while the dialog was open, cancellation without
+  sending, exactly one submission after bank navigation, manual agent inspection → Follow live, repeat-click recentering,
+  visible model turns, and no horizontal overflow at 390 px. Desktop checked at 1440 px; no page errors.
+- **Verification boundary:** these interaction checks intercepted the complaint and run-event endpoints with simulated
+  data. No new real-Codex investigation or backend integration suite was run for this frontend-only update.
+- Restarted the production frontend on `3011` against the existing Codex backend on `8012`.
+
+### Landing, quick tour and fixes · 2026-10-10 (night)
+- Landing rebuilt around "The UPI dispute resolution squad": live replay of real case DP-2944, live desk numbers from
+  the run ledger, the five agents, three real runs, and a thank-you section for neatlogs, Entire and cfo.ai.
+- Quick tour (8 steps) from customer complaint to bank resolution; agent steps unlock only when that agent actually
+  starts. Send is now one click straight to the bank desk (the extra "Watch agents" dialog was removed).
+- Recon exceptions wait for autopilot or "Start agents" again, so a sweep no longer runs every case on its own.
+- Fixed: old runs without recorded events now open from their saved outcome instead of a 404; a crash when the
+  Investigator omitted the payment id (seen on a real autopilot run, DP-2260).
+- **Checks actually run:** backend tests (9 passed); the full tour clicked through in Chrome against the real Codex
+  backend (fraud story → one-click send → agents → held for human approval); short tour, first-visit memory and
+  390 px layout in headless Chrome against a rules-mode test backend.
+
 ## Demo
-_Pending: URL and video. Local: backend `uvicorn main:app --port 8000`, frontend `npm run build && npm start -- -p 3001`._
+Public URL and video are pending. Current local preview:
+
+- Customer: `http://localhost:3011/app`
+- Bank desk: `http://localhost:3011/console`
+- Codex backend: `http://localhost:8012`
+
+Demo path: New question → choose a sandbox story or write a complaint → Send → Watch agents → live bank workflow
+→ approval when required → confirmed actions and customer response. See `README.md` for setup and controls.
 
 ## Known limitations and next steps
 - Counterparties are a sandbox; no real NPCI or bank connectivity.

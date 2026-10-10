@@ -125,7 +125,7 @@ def reset() -> None:
             _conn = sqlite3.connect(DB_PATH, check_same_thread=False, isolation_level=None)
             _conn.row_factory = sqlite3.Row
         c = _conn
-        for (name,) in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
+        for (name,) in c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall():
             c.execute(f"DROP TABLE {name}")
         c.executescript(SCHEMA)
         _seed(c, now())

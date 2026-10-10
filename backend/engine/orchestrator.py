@@ -89,10 +89,12 @@ def _agent_summary(run: Run, agent: str, out: dict) -> str:
 async def _resolve_and_execute(run: Run, instructions: str) -> dict:
     plan = await _dispatch(run, "resolver", instructions)
     await run.node("resolver", "running", activity="Execution engine validating plan", pause=0.2)
+    await run.edge("resolver>executor", "taken")
     v = await executor.validate(run, plan)
     run.facts["validation"] = v
     if v["needs_human"]:
         run.pending_plan = v
+        await run.node("executor", "waiting", activity="Guardrails require human approval", pause=0)
         await run.node("resolver", "done", activity="Plan held for human approval", pause=0.2)
         return {"status": "AWAITING_APPROVAL", "reason": v["human_reason"], "approved_actions": v["approved"], "rejected": v["rejected"]}
     await executor.execute(run, v["approved"])
@@ -119,9 +121,11 @@ async def orchestrate(run: Run):
 
     # Intake: a free-text complaint has no UTR yet. Find the payment the customer means, or ask them.
     if not c.get("utr"):
+        await run.edge("complaint>intake", "active")
         with tracing.child("intake", "AGENT", inp=c["complaint"]) as sp:
             found = await intake(run)
             tracing.finish(sp, found)
+        await run.edge("complaint>intake", "taken")
         if not found.get("utr"):
             run.status = "NEEDS_INFO"
             outcome = {"status": "NEEDS_INFO", "headline": "Asked the customer for one detail", "summary": found["summary"],
@@ -137,8 +141,9 @@ async def orchestrate(run: Run):
         await run.node("intake", "skipped", activity="Found by the reconciliation sweep" if sweep else "The UTR came with the complaint", pause=0.1)
     run.facts["before"] = await snapshot(run)
     await run.emit("before", before=run.facts["before"])
-    await run.edge("complaint>orchestrator", "active", pause=0.6)
-    await run.edge("complaint>orchestrator", "taken")
+    entry = "intake>orchestrator" if c.get("intake_summary") else "complaint>orchestrator"
+    await run.edge(entry, "active", pause=0.6)
+    await run.edge(entry, "taken")
     await run.node(O, "running", activity="Running reconciliation sweep" if sweep else "Reading complaint", pause=0.3)
     t0 = time.monotonic()
     dispatched: list[str] = []
@@ -292,15 +297,17 @@ def _proof_message(run: Run, f: dict) -> str:
 async def _finish(run: Run, closing: dict, via: str | None = None):
     outcome = _outcome(run, closing)
     if outcome["status"] == "AWAITING_APPROVAL":
-        await run.edge("resolver>human", "active", pause=0.6)
-        await run.edge("resolver>human", "taken")
+        await run.edge("executor>human", "active", pause=0.6)
+        await run.edge("executor>human", "taken")
         await run.node("human", "waiting", activity=outcome["human_reason"], pause=0.2)
         run.status = "AWAITING_APPROVAL"
     else:
         src = via or ("resolver" if run.facts.get("validation") else "orchestrator")
         if src == "resolver":
-            await run.edge("resolver>human", "skipped")
+            await run.edge("executor>human", "skipped")
             await run.node("human", "skipped", activity="Within auto-approval limits", pause=0.1)
+        if any(a.get("state") == "done" for a in outcome.get("actions", [])) and run.facts.get("validation"):
+            src = "executor"
         await run.edge(f"{src}>outcome", "active", pause=0.6)
         await run.edge(f"{src}>outcome", "taken")
         await run.node("outcome", "done", activity=outcome["headline"], pause=0.2)
@@ -312,15 +319,31 @@ async def _finish(run: Run, closing: dict, via: str | None = None):
 
 async def decide(run: Run, approve: bool, reviewer: str):
     v = run.pending_plan
+    await run.emit("resume")
     await run.node("human", "running", activity=f"{reviewer} reviewing", pause=0.3)
     if not approve:
-        await run.step("human", "decision", f"Rejected by {reviewer}", "Plan cancelled; case moved to the manual fraud queue.", status="bad", pause=0.6)
+        await run.step("human", "decision", f"Rejected by {reviewer}", run.facts.get("review_reason") or "Plan cancelled; case moved to manual review.", status="bad", pause=0.6)
         for a in v["approved"]:
             a["state"] = "cancelled"
         await run.node("human", "done", activity="Rejected", pause=0.2)
         run.status = "ESCALATED"
-        await _finish(run, {"headline": "Escalated to manual review", "summary": f"{reviewer} rejected the proposed actions."}, via="human")
+        await _finish(run, {"headline": "Escalated to manual review", "summary": f"{reviewer} declined the proposed actions. {run.facts.get('review_reason', '')}"}, via="human")
         return
+    # Approval authorizes the displayed plan, not an unbounded future version of it.
+    fresh = await executor.validate(run, {"actions": v["approved"]})
+    signature = lambda actions: sorted((a["type"], a["utr"], a["amount_paise"]) for a in actions)
+    if signature(fresh["approved"]) != signature(v["approved"]):
+        run.pending_plan = fresh
+        run.facts["validation"] = fresh
+        run.status = "RUNNING" if fresh["approved"] else "ESCALATED"
+        fresh["human_reason"] = "Evidence or amounts changed since the proposal. Review the updated actions."
+        await run.step("human", "decision", "Approval paused: evidence changed", fresh["human_reason"], status="warn")
+        await _finish(run, {}, via="human")
+        return
+    run.pending_plan = fresh
+    run.facts["validation"] = fresh
+    v = fresh
+    await run.edge("human>executor", "taken")
     run.facts["approved_by"] = reviewer
     await run.step("human", "decision", f"Approved by {reviewer}",
                    " · ".join(a["type"].replace("_", " ").lower() for a in v["approved"]), status="ok", pause=0.5)

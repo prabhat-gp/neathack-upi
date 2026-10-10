@@ -15,7 +15,8 @@ const GROUPS: { title: string; tone: string; statuses: DeskStatus[] }[] = [
   { title: 'Agents working', tone: 'text-violet-600', statuses: ['WORKING'] },
   { title: 'Waiting on customer', tone: 'text-slate-500', statuses: ['NEEDS_INFO'] },
   { title: 'Queued', tone: 'text-slate-500', statuses: ['QUEUED'] },
-  { title: 'Resolved', tone: 'text-emerald-600', statuses: ['RESOLVED', 'ESCALATED', 'FAILED'] },
+  { title: 'Needs attention', tone: 'text-rose-600', statuses: ['ESCALATED', 'FAILED'] },
+  { title: 'Resolved', tone: 'text-emerald-600', statuses: ['RESOLVED'] },
 ]
 
 function Card({ c, active, onPick }: { c: DeskCase; active: boolean; onPick: () => void }) {

@@ -77,6 +77,8 @@ async def investigator(run: Run, instructions: str) -> dict:
         out = await run_agent(run, "investigator", INVESTIGATOR_SYSTEM, T.INVESTIGATOR_TOOLS, task, "submit_findings")
     else:
         out = await _investigator_rules(run)
+    if not out.get("disputed_utr"):  # the model occasionally omits it; the case already knows the payment
+        out["disputed_utr"] = run.case.get("utr")
     run.facts["findings"] = out
     await run.step("investigator", "finding", rules.RULEBOOK.get(out["case_type"], {}).get("name", out["case_type"].replace("_", " ").title()),
                    out["summary"], status="info" if out["case_type"] in ("CREDIT_CONFIRMED", "ALREADY_RESOLVED") else "warn", pause=0.8)

@@ -16,10 +16,11 @@ from .tools import rs
 OUTWARD_TAT = ("P2P_NOT_CREDITED", "P2M_NOT_CONFIRMED")
 FRAUD_ACTIONS = ("REQUEST_LIEN", "FILE_NCRP_REPORT", "RAISE_FRAUD_REPORT", "BLOCK_PAYEE_VPA")
 CREDITS = ("REVERSE_DEBIT", "PAY_TAT_COMPENSATION")
-N = "resolver"
+N = "executor"
 
 
 async def validate(run: Run, plan: dict) -> dict:
+    await run.node(N, "running", activity="Re-verifying evidence and monetary amounts", pause=0)
     f = run.facts["findings"]
     ct, utr = f["case_type"], f["disputed_utr"]
     inward = ct == "INWARD_NOT_CREDITED"
@@ -107,6 +108,7 @@ async def validate(run: Run, plan: dict) -> dict:
 
 
 async def execute(run: Run, actions: list[dict], node: str = N) -> list[dict]:
+    await run.node(N, "running", activity="Executing validated actions", pause=0)
     f = run.facts["findings"]
     ev = run.facts["evidence"]
     utr0 = f["disputed_utr"]
@@ -149,4 +151,5 @@ async def execute(run: Run, actions: list[dict], node: str = N) -> list[dict]:
                        body={"customer_id": cust, "vpa": txn["counterparty_vpa"]}, summarize=lambda d: (f"{d['vpa']} {d['status']}", "ok"))
             a["ref"] = "BLOCKED"
         a["state"] = "scheduled" if typ == "MONITOR" else "done"
+    await run.node(N, "done", activity="Action responses recorded", pause=0)
     return actions

@@ -1,6 +1,8 @@
 import asyncio
 import time
 import uuid
+import json
+from sandbox import db
 
 
 class Run:
@@ -30,6 +32,8 @@ class Run:
     async def emit(self, type_: str, pause: float = 0.0, **payload):
         ev = {"type": type_, "t": self.ms(), **payload}
         self.history.append(ev)
+        db.ex("CREATE TABLE IF NOT EXISTS desk_events (run_id TEXT, seq INTEGER, event TEXT, PRIMARY KEY(run_id, seq))")
+        db.ex("INSERT INTO desk_events VALUES (?,?,?)", self.id, len(self.history), json.dumps(ev, default=str))
         for q in list(self.subscribers):
             q.put_nowait(ev)
         if pause and self.pace:

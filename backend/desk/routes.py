@@ -5,7 +5,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import config
 from sandbox import db
@@ -71,12 +71,14 @@ def app_home(customer_id: str):
 class UdirComplaint(BaseModel):
     customer_id: str
     utr: str
-    text: str
+    text: str = Field(min_length=1, max_length=5000)
 
 
 class ChatMessage(BaseModel):
     customer_id: str
-    text: str
+    text: str = Field(min_length=1, max_length=5000)
+    case_id: str | None = None
+    request_review: bool = False
 
 
 @router.post("/channels/udir")
@@ -96,7 +98,7 @@ def channel_chat(body: ChatMessage, request: Request):
     if not db.q1("SELECT 1 FROM cbs_customers WHERE id=?", body.customer_id):
         raise HTTPException(404, "Unknown customer")
     admit(request)
-    return supervisor.customer_message(body.customer_id, body.text.strip(), "CHAT")
+    return supervisor.customer_message(body.customer_id, body.text.strip(), "CHAT", case_id=body.case_id, request_review=body.request_review)
 
 
 @router.get("/channels/thread/{customer_id}")
@@ -133,12 +135,42 @@ async def desk_start(case_id: str, request: Request):
     return {"run_id": run.id}
 
 
+def _from_outcome(run_id: str) -> list[str]:
+    """Runs finished before event capture existed: rebuild the final state from the outcome saved on the case."""
+    c = db.q1("SELECT * FROM desk_cases WHERE run_id=?", run_id)
+    if not c or not c["outcome"]:
+        return []
+    o = json.loads(c["outcome"])
+    o.setdefault("findings", {"summary": o.get("summary", ""), "evidence": [], "claim_matches_evidence": True})
+    note = "Finished before step-by-step recording; outcome only"
+    evs = [{"type": "run_started", "t": 0, "run_id": run_id, "model": config.model_name(), "before": None}]
+    evs.append({"type": "node", "t": 0, "node": "intake", "status": "skipped", "activity": "Payment known when the case opened"})
+    for n in o.get("usage") or {}:
+        evs.append({"type": "node", "t": 0, "node": n, "status": "done", "activity": note})
+    if any(a.get("state") == "done" for a in o.get("actions") or []):
+        evs.append({"type": "node", "t": 0, "node": "executor", "status": "done", "activity": "Actions confirmed"})
+    evs.append({"type": "node", "t": 0, "node": "outcome", "status": "done", "activity": o.get("headline")})
+    ms = int(((o.get("ops") or {}).get("seconds") or 0) * 1000)
+    evs.append({"type": "run_finished", "t": ms, "outcome": o})
+    return [json.dumps(e, default=str) for e in evs]
+
+
 @router.get("/api/runs/{run_id}/events")
 async def run_events(run_id: str):
     """Server-sent events for one run: everything so far, then live until the run goes idle."""
     run = supervisor.RUNS.get(run_id)
     if not run:
-        raise HTTPException(404, "Run not found (the server may have restarted)")
+        db.ex("CREATE TABLE IF NOT EXISTS desk_events (run_id TEXT, seq INTEGER, event TEXT, PRIMARY KEY(run_id, seq))")
+        rows = [r["event"] for r in db.q("SELECT event FROM desk_events WHERE run_id=? ORDER BY seq", run_id)]
+        if not rows:
+            rows = _from_outcome(run_id)
+        if not rows:
+            raise HTTPException(404, "No recorded events are available for this run")
+        async def archived():
+            for row in rows:
+                yield f"data: {row}\n\n"
+            yield 'data: {"type":"idle"}\n\n'
+        return StreamingResponse(archived(), media_type="text/event-stream")
     q = run.subscribe()
 
     async def body():
@@ -158,6 +190,8 @@ async def run_events(run_id: str):
 class Decision(BaseModel):
     approve: bool
     reviewer: str = "Ops reviewer"
+    reason: str = Field(default="", max_length=2000)
+    escalate: bool = False
 
 
 @router.post("/api/runs/{run_id}/decision")
@@ -167,6 +201,10 @@ async def run_decision(run_id: str, body: Decision):
         raise HTTPException(404, "Run not found")
     if run.status != "AWAITING_APPROVAL":
         raise HTTPException(409, f"Run is {run.status}, not awaiting approval")
+    if not body.approve and not body.reason.strip():
+        raise HTTPException(422, "Add a reason so the next reviewer knows what needs attention.")
+    run.facts["review_reason"] = body.reason.strip()
+    run.facts["review_escalated"] = body.escalate
     run.status = "DECIDING"
     supervisor.decide_case(run, body.approve, body.reviewer)
     return {"ok": True}

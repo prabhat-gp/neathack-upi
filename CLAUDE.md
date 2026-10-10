@@ -8,8 +8,9 @@ penalties, and answer customer complaints on the channel they came from. Build l
 **Rubric:** agent 30% · use of neatlogs + Entire + cfo.ai 25% · demo 20% · building in public 15% · usefulness 10%.
 
 ## Rules from the user (non-negotiable)
-- **Agentic, not a demo.** No hardcoded scenes, no scripted outcomes, no customer pickers in the complaint flow.
-  Complaints arrive through channels; agents decide from evidence. Money math stays deterministic in the executor.
+- **Agentic outcomes.** Complaints arrive through channels; agents decide from evidence. Money math stays deterministic
+  in the executor. User-requested sandbox story shortcuts may select a matching account and fill an editable complaint;
+  they must not script agent decisions or outcomes. Manual account switching stays in Demo controls.
 - **Never fake anything:** no invented numbers, no claims about tools we don't use (Crustdata was removed — never
   claim it), no "tested" unless it ran. Fictional bank is **Sahyadri Bank**; no real-bank branding.
 - **Git:** work on `qa`; `main` is prod — merge only when the user says. Commits look human: short lowercase
@@ -47,14 +48,16 @@ autopilot.py (recon + a complaint every 120s, max 10)  RESOLVED ESCALATED FAILED
 - **DisputePro MCP** `mcp_server.py` at `/mcp`, bearer `MCP_API_TOKEN`: desk_metrics, recent_runs, market_facts,
   open_exceptions. Intended surface for cfo.ai and Claude Code.
 - **Frontend** Next.js 14 + Tailwind: `/` landing (dark hero, Partners), `/app` customer UPI app simulator,
-  `/console` live ops desk (SSE `/api/runs/{id}/events`). Fonts Inter / Inter Tight / Newsreader / JetBrains Mono;
-  `night`/`ink` = `#06070d`, violet accent.
+  `/console` live ops desk (SSE `/api/runs/{id}/events`). Fonts Inter / Inter Tight / JetBrains Mono; navy shell, light surfaces and restrained blue accents. Agent map and evidence panels live in `frontend/components/desk/`.
 
 ## Run locally
 - Backend (Python 3.13 venv; no `--reload` — reload kills in-flight runs; don't edit backend files mid-run):
   `cd backend && /Users/admin/Desktop/neathack-upi/backend/.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000`
 - Frontend: `cd frontend && npm run build && npm start -- -p 3001`
-- Reset sandbox: ⋯ menu in `/console`. Each real Codex case ≈ 250–400k tokens, 1–1.5 min.
+- Current local preview: frontend `3011`, isolated Codex backend `8012`. Build with
+  `NEXT_PUBLIC_API_URL=http://localhost:8012 npm run build`; serve with `npm start -- --port 3011`.
+- Sandbox controls in `/console` offer reconciliation and synthetic arrivals. Each real Codex case has historically
+  used approximately 250–400k tokens and 1–1.5 minutes; actual usage and duration vary.
 
 ## Partner tools
 - **Entire** CLI 0.11.4 (github:prabhat-gp), Graph v0.4.0, Brain 0.1.0 (MCP in `.mcp.json`), 6 Trail runners,
@@ -65,11 +68,33 @@ autopilot.py (recon + a complaint every 120s, max 10)  RESOLVED ESCALATED FAILED
   build pricing/costs/revenue/runway plan, then flip the Partners panel to Live.
 
 ## Open work
-1. Re-verify Hindi complaint → Hindi reply on real Codex.
-2. cfo.ai business plan. 3. neatlogs detections/evals + before/after evidence. 4. Failure-recovery run write-up.
-5. Deploy Oct 12 (EC2 + Caddy/sslip HTTPS, `codex login --device-auth` on server, model switch). 6. Video, posts, submission checklist.
+1. cfo.ai business plan.
+2. neatlogs detections/evals and before/after improvement evidence.
+3. Failure-recovery run write-up.
+4. Deploy Oct 12 (EC2 + Caddy/sslip HTTPS, `codex login --device-auth` on server, model switch).
+5. Video, posts and submission checklist.
+
+Hindi complaint → Hindi reply was re-verified on real Codex in the agent-first rebuild; see the build log.
 
 <!-- entire-agent:begin -->
 Read .entire/agent-guide.md for this repository's workflow, source inspection, and verification guidance.
 @.entire/agent-guide.md
 <!-- entire-agent:end -->
+
+## Agent-first workflow update
+- `/console` is an interactive event-driven agent map, case inbox, evidence/review/receipt workspace and recorded-event replay.
+- Execution engine is a separate non-AI node; approval revalidates the displayed actions before execution.
+- `/app` uses explicit case-scoped replies and offers specialist review requests. Account switching is in Demo controls.
+- All queued channels process independently of synthetic arrivals. SQLite `desk_events` persists replay; full outcomes persist on cases.
+- In-flight/approval cases interrupted by restart move to specialist review; no silent automatic financial retry.
+- Customer handoff: Send opens a dialog without submitting. Watch agents transfers a session-storage draft to the
+  mounted bank desk, which submits it and follows the returned case. Applies to new complaints, payment complaints and
+  clarification replies; ordinary case messages and specialist review requests keep their existing behavior.
+- Three editable sandbox stories demonstrate fraud, double payment and beneficiary-bank outage. Outcomes remain evidence-driven.
+- Keep the case header compact: Follow live and Case details beside the customer name. Case details contains thread,
+  actions/receipt, evidence and an available trace link. The map fits automatically; Follow live also recenters on repeat clicks.
+- Small model labels use recorded run metadata when available. Show model turns and tool results in agent inspection;
+  label rules fallback and deterministic execution honestly.
+- Latest UX verification: production build and headless browser interaction checks passed. Browser checks used simulated
+  run events, not a new real-model investigation. Earlier real-Codex validation remains documented in `hackathon.md`.
+- Run `cd backend && .venv/bin/python -m unittest discover -s tests -v` for isolated integration checks.

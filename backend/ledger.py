@@ -1,6 +1,7 @@
 """Run ledger: one row per finished agent run. Survives sandbox resets; feeds the DisputePro MCP server."""
 
 import json
+from contextlib import closing
 import os
 import sqlite3
 from datetime import datetime
@@ -39,13 +40,13 @@ def record(run, outcome: dict, model: str | None) -> None:
         "refunded_paise": outcome.get("refunded_paise", 0), "frozen_paise": outcome.get("frozen_paise", 0),
         "deadline_met": int(bool(dl.get("met"))) if dl else None, "seconds_to_spare": dl.get("seconds_left") if dl else None,
     }
-    with _db() as con:
+    with closing(_db()) as con, con:
         con.execute(f"INSERT OR REPLACE INTO runs ({','.join(row)}) VALUES ({','.join('?' * len(row))})", list(row.values()))
 
 
 def runs(limit: int = 50, brain: str | None = None) -> list[dict]:
     sql = "SELECT * FROM runs" + (" WHERE brain=?" if brain else "") + " ORDER BY finished_at DESC LIMIT ?"
-    with _db() as con:
+    with closing(_db()) as con, con:
         return [dict(r) for r in con.execute(sql, ([brain] if brain else []) + [limit])]
 
 

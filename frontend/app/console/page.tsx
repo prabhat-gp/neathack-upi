@@ -1,224 +1,914 @@
 'use client'
-
 import Link from 'next/link'
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
+import {
+  api,
+  followRun,
+  initialRunState,
+  reduceRun,
+  rs,
+  type DeskCase,
+  type Meta,
+  type NodeId,
+  type RunEvent,
+  type Snapshot,
+} from '@/lib/run'
+import WorkflowMap from '@/components/desk/WorkflowMap'
 import AgentFocus from '@/components/desk/AgentFocus'
-import CaseRail, { CHANNEL } from '@/components/desk/CaseRail'
+import EvidencePanel from '@/components/desk/EvidencePanel'
 import CaseReport from '@/components/desk/CaseReport'
 import ResultPanel from '@/components/desk/ResultPanel'
-import Stepper from '@/components/desk/Stepper'
-import { Icon } from '@/components/meta'
-import { API_URL, api, followRun, initialRunState, reduceRun, rs, type DeskCase, type Meta, type NodeId, type Snapshot } from '@/lib/run'
+import Countdown from '@/components/desk/Countdown'
+import { Icon, NODE_META } from '@/components/meta'
+import Tour, { TOUR_SEEN, TOUR_STAGE, tourStore, type TourStep } from '@/components/tour/Tour'
 
-type Autopilot = { on: boolean; sent: number; max: number; interval_sec: number; active_runs: number }
-
+const FILTERS = [
+  'All cases',
+  'Needs approval',
+  'Investigating',
+  'Waiting',
+  'Attention',
+  'Completed',
+] as const
+const STATUS: Record<string, string> = {
+  QUEUED: 'Queued',
+  WORKING: 'Investigating',
+  NEEDS_YOU: 'Needs approval',
+  NEEDS_INFO: 'Waiting for customer',
+  RESOLVED: 'Completed',
+  ESCALATED: 'Specialist review',
+  FAILED: 'Run failed',
+}
+function matches(c: DeskCase, filter: string) {
+  return (
+    filter === 'All cases' ||
+    (filter === 'Needs approval' && c.status === 'NEEDS_YOU') ||
+    (filter === 'Investigating' && c.status === 'WORKING') ||
+    (filter === 'Waiting' && ['QUEUED', 'NEEDS_INFO'].includes(c.status)) ||
+    (filter === 'Attention' && ['FAILED', 'ESCALATED'].includes(c.status)) ||
+    (filter === 'Completed' && c.status === 'RESOLVED')
+  )
+}
+type Pilot = { on: boolean; sent: number; max: number }
 export default function Desk() {
-  const [meta, setMeta] = useState<Meta | null>(null)
-  const [cases, setCases] = useState<DeskCase[]>([])
-  const [detail, setDetail] = useState<DeskCase | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [meta, setMeta] = useState<Meta | null>(null),
+    [cases, setCases] = useState<DeskCase[]>([]),
+    [selected, setSelected] = useState<string | null>(null),
+    [detail, setDetail] = useState<DeskCase | null>(null)
   const [run, dispatch] = useReducer(reduceRun, undefined, initialRunState)
-  const [live, setLive] = useState<Snapshot | null>(null)
-  const [pilot, setPilot] = useState<Autopilot | null>(null)
-  const [pinned, setPinned] = useState<NodeId | null>(null)
-  const [deciding, setDeciding] = useState(false)
-  const [note, setNote] = useState<string | null>(null)
-  const following = useRef<{ id: string; ctrl: AbortController } | null>(null)
-
-  const llm = !!meta && meta.brain !== 'rules'
-  const model = llm ? meta?.model ?? null : null
-  const kase = (detail && detail.id === selected ? detail : null) ?? cases.find((c) => c.id === selected) ?? null
-
+  const [node, setNode] = useState<NodeId | null>('orchestrator'),
+    [panel, setPanel] = useState<
+      'agent' | 'conversation' | 'result' | 'route' | 'evidence' | 'build'
+    >('agent')
+  const [edge, setEdge] = useState(''),
+    [query, setQuery] = useState(''),
+    [filter, setFilter] = useState<string>('All cases'),
+    [follow, setFollow] = useState(true)
+  const [note, setNote] = useState<string | null>(null),
+    [connected, setConnected] = useState(false),
+    [streamError, setStreamError] = useState<string | null>(null),
+    [retry, setRetry] = useState(0)
+  const [pilot, setPilot] = useState<Pilot | null>(null),
+    [busy, setBusy] = useState(false),
+    [live, setLive] = useState<Snapshot | null>(null)
+  const [events, setEvents] = useState<RunEvent[]>([]),
+    [replay, setReplay] = useState<number | null>(null)
+  const selectedRef = useRef<string | null>(null)
+  const [focusTick, setFocusTick] = useState(0)
+  const [tour, setTour] = useState<'full' | 'short' | null>(null)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    // A customer who just pressed Send arrives with their case: follow it live.
+    if (q.has('case') && tourStore(TOUR_STAGE) === 'console') {
+      setTour('full')
+      setNode('intake')
+      setFollow(true)
+    } else if (q.has('tour') || !tourStore(TOUR_SEEN)) setTour('short')
+    tourStore(TOUR_SEEN, '1')
+  }, [])
+  const kase =
+    detail?.id === selected ? detail : cases.find((c) => c.id === selected)
   const poll = useCallback(async () => {
     try {
-      const [cs, ap] = await Promise.all([api<DeskCase[]>('/api/desk/cases'), api<Autopilot>('/api/desk/autopilot')])
+      const [cs, ap] = await Promise.all([
+        api<DeskCase[]>('/api/desk/cases'),
+        api<Pilot>('/api/desk/autopilot'),
+      ])
       setCases(cs)
       setPilot(ap)
-      setSelected((s) => s ?? (cs.find((c) => c.status === 'WORKING') ?? cs.find((c) => c.status === 'NEEDS_YOU') ?? cs[0])?.id ?? null)
-    } catch { /* API down: the banner says so */ }
+      setConnected(true)
+      setSelected((s) =>
+        s && cs.some((c) => c.id === s)
+            ? s
+            : ((
+                cs.find((c) => c.status === 'NEEDS_YOU') ??
+                cs.find((c) => c.status === 'WORKING') ??
+                cs[0]
+              )?.id ?? null),
+      )
+    } catch {
+      setConnected(false)
+    }
   }, [])
-
   useEffect(() => {
-    api<Meta>('/api/meta').then(setMeta).catch(() => setNote('Can’t reach the DisputePro API.'))
+    setSelected(new URLSearchParams(window.location.search).get('case'))
+    api<Meta>('/api/meta')
+      .then(setMeta)
+      .catch(() => {})
     poll()
-    const id = setInterval(poll, 2000)
-    return () => clearInterval(id)
+    const t = setInterval(poll, 2500)
+    return () => clearInterval(t)
   }, [poll])
-
-  // Selected case: details + conversation, refreshed whenever it changes.
+  useEffect(() => {
+    selectedRef.current = selected
+    setReplay(null)
+    setFollow(true)
+    if (selected)
+      window.history.replaceState(
+        null,
+        '',
+        `/console?case=${encodeURIComponent(selected)}`,
+      )
+  }, [selected])
   const stamp = cases.find((c) => c.id === selected)?.updated_at
   useEffect(() => {
-    if (!selected) return
-    api<DeskCase>(`/api/desk/cases/${selected}`).then(setDetail).catch(() => {})
-  }, [selected, stamp, run.nodes.intake.status, run.outcome])
-
-  // Follow the case's run live, or replay it if it already finished.
-  const runId = kase?.run_id ?? null
+    if (!selected) {
+      setDetail(null)
+      return
+    }
+    let cancelled = false
+    api<DeskCase>(`/api/desk/cases/${selected}`)
+      .then((c) => {
+        if (!cancelled) setDetail(c)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [selected, stamp])
+  const runId = kase?.run_id
+  const isWorking = kase?.status === 'WORKING'
   useEffect(() => {
-    if (following.current?.id === runId) return
-    following.current?.ctrl.abort()
     dispatch({ type: 'reset', t: 0 })
-    setPinned(null)
-    if (!runId) { following.current = null; return }
+    setEvents([])
+    setStreamError(null)
+    setReplay(null)
+    if (!runId) return
     const ctrl = new AbortController()
-    following.current = { id: runId, ctrl }
-    followRun(runId, dispatch, ctrl.signal).catch(() => {})
-  }, [runId])
-
-  // Live records of the systems involved, refreshed whenever an agent writes to one.
-  const posts = run.steps.filter((s) => s.kind === 'call' && s.http?.method === 'POST' && s.status !== 'running').length
+    followRun(
+      runId,
+      (ev) => {
+        if (!ctrl.signal.aborted) {
+          dispatch(ev)
+          setEvents((es) => [...es, ev])
+        }
+      },
+      ctrl.signal,
+    ).catch((e) => {
+      if (!ctrl.signal.aborted) setStreamError(e.message)
+    })
+    return () => ctrl.abort()
+  }, [runId, retry, isWorking])
+  const shown = useMemo(
+    () =>
+      replay === null
+        ? run
+        : events.slice(0, replay + 1).reduce(reduceRun, initialRunState()),
+    [run, events, replay],
+  )
+  const active = (
+    [
+      'intake',
+      'investigator',
+      'policy',
+      'executor',
+      'resolver',
+      'orchestrator',
+    ] as NodeId[]
+  ).find((n) => shown.nodes[n].status === 'running')
   useEffect(() => {
-    if (!kase?.utr) { setLive(null); return }
-    fetch(`${API_URL}/sandbox/snapshot?customer_id=${kase.customer_id}&utr=${kase.utr}`)
-      .then((r) => (r.ok ? r.json() : null)).then(setLive).catch(() => {})
+    if (follow && active) {
+      setNode(active)
+      setPanel('agent')
+    }
+    if (follow && (shown.phase === 'done' || shown.phase === 'error')) {
+      setNode('outcome')
+      setPanel('result')
+    }
+    if (follow && shown.phase === 'awaiting') {
+      setNode('human')
+      setPanel('result')
+    }
+  }, [follow, active, shown.phase, focusTick])
+  const posts = run.steps.filter(
+    (s) =>
+      s.kind === 'call' && s.http?.method === 'POST' && s.status !== 'running',
+  ).length
+  useEffect(() => {
+    setLive(null)
+    if (!kase?.utr) return
+    let cancelled = false
+    api<Snapshot>(
+      `/sandbox/snapshot?customer_id=${encodeURIComponent(kase.customer_id)}&utr=${encodeURIComponent(kase.utr)}`,
+    )
+      .then((s) => {
+        if (!cancelled) setLive(s)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
   }, [kase?.utr, kase?.customer_id, posts, run.outcome])
-
-  async function act(fn: () => Promise<unknown>, ok?: string) {
+  async function act(fn: () => Promise<unknown>) {
+    setBusy(true)
     setNote(null)
-    try { await fn(); if (ok) setNote(ok); poll() } catch (e) { setNote((e as Error).message) }
+    try {
+      await fn()
+      await poll()
+    } catch (e) {
+      setNote((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
   }
-
-  async function decide(approve: boolean) {
-    const id = run.runId
-    if (!id) return
-    setDeciding(true)
-    await act(() => api(`/api/runs/${id}/decision`, { approve }))
-    following.current?.ctrl.abort()
-    const ctrl = new AbortController()
-    following.current = { id, ctrl }
-    dispatch({ type: 'reset', t: 0 })
-    followRun(id, dispatch, ctrl.signal).catch(() => {}).finally(() => setDeciding(false))
+  async function decide(approve: boolean, reason?: string, escalate?: boolean) {
+    await act(async () => {
+      await api(`/api/runs/${runId}/decision`, {
+        approve,
+        reason: reason ?? '',
+        escalate: !!escalate,
+      })
+      setRetry((r) => r + 1)
+    })
   }
-
-  async function resetBank() {
-    await api('/api/desk/autopilot', { on: false })
-    await fetch(`${API_URL}/sandbox/reset`, { method: 'POST' })
-    setSelected(null)
-    setDetail(null)
+  function pickNode(n: NodeId) {
+    setFollow(false)
+    setNode(n)
+    setPanel(
+      n === 'complaint'
+        ? 'conversation'
+        : n === 'human' || n === 'outcome'
+          ? 'result'
+          : 'agent',
+    )
   }
-
-  const working = run.phase === 'running'
-  const active = (['intake', 'investigator', 'policy', 'resolver'] as NodeId[]).find((n) => run.nodes[n].status === 'running') ?? 'orchestrator'
-  const showReport = !pinned && run.outcome && !working
-  const focus: NodeId = pinned ?? active
-  const ch = kase ? CHANNEL[kase.channel] : null
-  const [first, ...more] = (kase?.message ?? '').split('\n')
+  const visible = cases
+    .filter(
+      (c) =>
+        matches(c, filter) &&
+        `${c.customer_name} ${c.id} ${c.utr ?? ''} ${c.message}`
+          .toLowerCase()
+          .includes(query.toLowerCase()),
+    )
+    .sort((a, b) => {
+      const rank = (c: DeskCase) =>
+        c.status === 'NEEDS_YOU'
+          ? 0
+          : ['FAILED', 'ESCALATED'].includes(c.status)
+            ? 1
+            : c.status === 'RESOLVED'
+              ? 4
+              : 2
+      return (
+        rank(a) - rank(b) ||
+        (a.deadline_at ?? '9999').localeCompare(b.deadline_at ?? '9999')
+      )
+    })
+  const settled = ['awaiting', 'done', 'error'].includes(run.phase)
+  const begun = (n: NodeId) => run.nodes[n].status !== 'idle' || settled
+  const showNode = (n: NodeId) => () => {
+    setNode(n)
+    setPanel('agent')
+    setFollow(false)
+  }
+  const resolutionStep: TourStep = {
+    target: 'resolution',
+    title:
+      run.phase === 'awaiting'
+        ? 'Your call: approve or decline'
+        : settled
+          ? 'Resolved, with proof'
+          : 'Waiting for the outcome',
+    body:
+      run.phase === 'awaiting' ? (
+        <>
+          The agents stopped here on purpose. Check the evidence and the exact actions they propose, then approve or
+          decline. Nothing moves until a person signs off. Every step is in the case’s <b>neatlogs</b> trace.
+        </>
+      ) : (
+        <>
+          What the agents found, the RBI rule applied, the actions confirmed in the bank’s systems and the reply sent to
+          the customer. Every step is in the case’s <b>neatlogs</b> trace.
+        </>
+      ),
+    ready: settled,
+    waiting: 'Agents are finishing the case…',
+    onEnter: () => {
+      setPanel('result')
+      setFollow(false)
+    },
+  }
+  const fullTour: TourStep[] = [
+    {
+      target: 'inbox-active',
+      title: 'Your complaint just landed at the bank',
+      body: 'It arrived in the case inbox with the RBI deadline already counting down. Nobody assigns it: the squad picks it up on its own.',
+      ready: !!kase,
+      waiting: 'Submitting your complaint…',
+    },
+    {
+      target: 'node-orchestrator',
+      title: 'The squad takes over',
+      body: 'Intake finds the exact payment from your words. The Orchestrator then decides which agent works the case next, based only on evidence.',
+      ready: begun('orchestrator'),
+      waiting: 'Intake is finding your payment…',
+    },
+    {
+      target: 'node-investigator',
+      title: 'Each agent has one job',
+      body: 'Investigator checks NPCI, core banking and the other bank. Policy applies the RBI T+1 / T+5 rule. Resolver plans the fix. Click any card to see what it did.',
+      ready: begun('investigator'),
+      waiting: 'The Orchestrator is routing the case…',
+      onEnter: () => setFollow(true),
+    },
+    {
+      target: 'node-executor',
+      title: 'Guardrails before money moves',
+      body: 'The execution engine re-checks the evidence and recomputes every amount. Fraud, or anything above ₹10,000, waits for a human to approve.',
+      ready: begun('executor'),
+      waiting: 'Policy and Resolver are working…',
+    },
+    {
+      ...resolutionStep,
+      extra: kase && settled ? (
+        <Link
+          href={`/app?c=${kase.customer_id}&case=${kase.id}`}
+          className="mt-3 block text-xs font-semibold text-blue-600"
+        >
+          See the reply in the customer app ↗
+        </Link>
+      ) : null,
+    },
+  ]
+  const shortTour: TourStep[] = [
+    {
+      target: 'inbox',
+      title: 'The bank’s case inbox',
+      body: 'Complaints from the UPI app and chat, plus exceptions found by the nightly reconciliation, land here. Each carries its RBI deadline.',
+    },
+    {
+      target: 'node-orchestrator',
+      title: 'The squad works every case',
+      body: 'Intake finds the payment, the Orchestrator routes on evidence, and Investigator, Policy and Resolver each do one job.',
+    },
+    {
+      target: 'node-investigator',
+      title: 'Open any agent',
+      body: 'Click a card to see what that agent checked, which systems it called, and what it concluded.',
+      onEnter: showNode('investigator'),
+    },
+    { ...resolutionStep, ready: true, title: 'Proof for every outcome' },
+  ]
+  const endTour = (finished: boolean) => {
+    setTour(null)
+    tourStore(TOUR_STAGE, null)
+    if (finished) setFollow(true)
+  }
 
   return (
-    <div className="flex h-screen flex-col bg-white">
-      <header className="flex h-14 shrink-0 items-center gap-3 bg-night px-4 text-white">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-night"><Icon name="orchestrator" className="h-4 w-4" /></span>
-          <span className="font-display text-[16px] font-semibold tracking-tight">DisputePro</span>
-        </Link>
-        <span className="text-[13px] text-white/20">/</span>
-        <span className="text-[13px] font-medium text-white/80">Ops desk</span>
-        <span className="hidden text-[12px] text-white/40 md:inline">Sahyadri Bank · sandbox</span>
-        {meta && (
-          <span title={meta.brain_label} className={`ml-1 hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium xl:flex ${llm ? 'bg-emerald-400/10 text-emerald-300' : 'bg-amber-400/10 text-amber-300'}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${llm ? 'animate-pulse bg-emerald-400' : 'bg-amber-400'}`} />
-            {llm ? `AI agents live · ${meta.model}` : 'Rules engine (no AI login)'}
+    <div className="desk-shell flex flex-col lg:h-screen lg:overflow-hidden">
+      <Tour
+        open={!!tour}
+        steps={tour === 'full' ? fullTour : shortTour}
+        first={tour === 'full' ? 4 : 1}
+        total={tour === 'full' ? 8 : 4}
+        onClose={endTour}
+      />
+      <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-4 bg-[#111d32] px-5 py-3 text-white">
+        <Link
+          href="/"
+          className="flex items-center gap-2 font-semibold tracking-tight"
+        >
+          <span className="rounded-lg bg-blue-500 p-2">
+            <Icon name="orchestrator" />
           </span>
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => act(() => api('/api/desk/recon', {}), 'Recon sweep done: exceptions found in tonight’s settlement data are queued.')}
-            className="hidden h-9 items-center gap-1.5 rounded-full border border-white/15 px-3.5 text-[12.5px] font-medium text-white/75 transition hover:bg-white/5 hover:text-white md:flex">
-            <Icon name="reset" className="h-3.5 w-3.5" /> Run recon sweep
+          DisputePro
+        </Link>
+        <span className="hidden text-white/25 sm:block">/</span>
+        <span className="text-sm text-white/70">Agent desk</span>
+        <span className="rounded border border-white/15 px-2 py-1 text-[10px] uppercase tracking-widest text-white/60">
+          Sahyadri · Sandbox
+        </span>
+        <div className="ml-auto flex items-center gap-3">
+          <span
+            className={`text-xs ${connected ? 'text-emerald-300' : 'text-amber-300'}`}
+          >
+            ● {connected ? 'Connected' : 'Reconnecting'}
+          </span>
+          <button onClick={() => setTour('short')} className="text-xs text-white/60 hover:text-white">
+            Take the tour
           </button>
-          <button onClick={() => act(() => api('/api/desk/autopilot', { on: !pilot?.on }))}
-            title="Runs the recon sweep, then has customers write in every few minutes. Capped per session."
-            className={`flex h-9 items-center gap-2 rounded-full px-3.5 text-[12.5px] font-semibold transition ${pilot?.on ? 'bg-emerald-400/15 text-emerald-300 ring-1 ring-emerald-400/40' : 'border border-white/15 text-white/75 hover:bg-white/5'}`}>
-            <span className={`relative h-4 w-7 rounded-full transition ${pilot?.on ? 'bg-emerald-400' : 'bg-white/20'}`}>
-              <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${pilot?.on ? 'left-3.5' : 'left-0.5'}`} />
-            </span>
-            Autopilot{pilot?.on ? ` · ${pilot.sent}/${pilot.max}` : ''}
-          </button>
-          <Link href="/app" target="_blank" className="flex h-9 items-center gap-1.5 rounded-full bg-violet-500 px-4 text-[12.5px] font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400">
-            Complain as a customer <Icon name="arrow" className="h-3.5 w-3.5" />
+          <Link
+            href="/app"
+            className="rounded-lg bg-white/10 px-3 py-2 text-xs hover:bg-white/20"
+          >
+            Customer view ↗
           </Link>
-          <details className="relative">
-            <summary className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-full border border-white/15 text-white/60 hover:bg-white/5">⋯</summary>
-            <div className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-900 shadow-lg">
-              <button onClick={() => act(resetBank, 'Sandbox reset: a fresh day at the bank.')}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] hover:bg-slate-50">
-                <Icon name="reset" className="h-3.5 w-3.5" /> Reset the sandbox bank
-              </button>
-            </div>
-          </details>
+          <button
+            onClick={() => {
+              setPanel('build')
+              setFollow(false)
+            }}
+            className="text-xs text-white/60 hover:text-white"
+          >
+            Build evidence
+          </button>
         </div>
       </header>
-      {note && <div className="flex items-center justify-between bg-violet-50 px-4 py-1.5 text-[12px] text-violet-900">{note}<button onClick={() => setNote(null)} className="text-violet-500">✕</button></div>}
-
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_330px]">
-        <CaseRail cases={cases} selected={selected} onPick={(id) => { setSelected(id); setDetail(null) }} />
-
-        <main className="flex min-h-0 flex-col gap-3 bg-slate-50/40 p-4">
-          {!kase ? (
-            <section className="grid flex-1 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white">
-              <div className="max-w-md p-6 text-center">
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-night text-white"><Icon name="orchestrator" className="h-6 w-6" /></div>
-                <h2 className="mt-3 font-display text-[22px] font-semibold tracking-[-0.03em]">The desk is quiet</h2>
-                <p className="mt-1 text-[13.5px] leading-relaxed text-slate-500">
-                  Cases arrive the way they do at a bank: customers complaining in the UPI app or chat, and exceptions the nightly
-                  reconciliation finds in the settlement data.
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-5 py-3">
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`rounded-lg px-3 py-2 text-xs font-medium transition ${filter === f ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
+            {f}
+            <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+              {cases.filter((c) => matches(c, f)).length}
+            </span>
+          </button>
+        ))}
+        <details className="relative ml-auto">
+          <summary className="cursor-pointer text-xs text-slate-500">
+            Sandbox controls
+          </summary>
+          <div className="absolute right-0 top-8 z-30 grid w-64 gap-2 rounded-xl border bg-white p-4 shadow-xl">
+            <p className="text-xs text-slate-500">
+              Synthetic arrivals are independent of case processing.
+            </p>
+            <button
+              className="desk-button"
+              disabled={busy}
+              onClick={() => act(() => api('/api/desk/recon', {}))}
+            >
+              Run reconciliation
+            </button>
+            <button
+              className="desk-button"
+              disabled={busy}
+              onClick={() =>
+                act(() => api('/api/desk/autopilot', { on: !pilot?.on }))
+              }
+            >
+              {pilot?.on ? 'Stop' : 'Start'} synthetic arrivals
+            </button>
+            <span className="text-[11px] text-slate-400">
+              {pilot?.sent ?? 0} / {pilot?.max ?? 0} generated this session
+            </span>
+          </div>
+        </details>
+      </div>
+      {(!connected || note || streamError) && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 bg-amber-50 px-5 py-2 text-xs text-amber-900"
+        >
+          {note ||
+            streamError ||
+            'Bank connection unavailable. Displaying the last received state.'}
+          {streamError && (
+            <button
+              className="underline"
+              onClick={() => setRetry((r) => r + 1)}
+            >
+              Reconnect event stream
+            </button>
+          )}
+          {note && <button onClick={() => setNote(null)}>Dismiss</button>}
+        </div>
+      )}
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[245px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_350px] 2xl:grid-cols-[245px_minmax(0,1fr)_380px]">
+        <aside data-tour="inbox" className="flex max-h-72 flex-col border-r border-slate-200 bg-white lg:max-h-none">
+          <div className="p-4">
+            <div className="mb-3 flex justify-between">
+              <h2 className="text-sm font-semibold">Case inbox</h2>
+              <span className="text-xs text-slate-400">{visible.length}</span>
+            </div>
+            <input
+              aria-label="Search cases"
+              placeholder="Search name, case, UTR…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+            />
+          </div>
+          <div className="min-h-0 overflow-auto px-2 pb-4">
+            {visible.length === 0 && (
+              <p className="p-4 text-xs leading-6 text-slate-400">
+                {cases.length
+                  ? 'No cases match this view.'
+                  : 'New complaints and recon exceptions appear here.'}
+              </p>
+            )}
+            {visible.map((c) => (
+              <button
+                key={c.id}
+                data-tour={selected === c.id ? 'inbox-active' : undefined}
+                onClick={() => {
+                  setSelected(c.id)
+                  setDetail(null)
+                  setPanel('agent')
+                }}
+                className={`mb-1 w-full rounded-xl border p-3 text-left transition ${selected === c.id ? 'border-blue-200 bg-blue-50/70' : 'border-transparent hover:bg-slate-50'}`}
+              >
+                <div className="flex justify-between text-[10px] text-slate-400">
+                  <span>
+                    {c.id} · {c.channel}
+                  </span>
+                  <span>{rs(c.amount_paise)}</span>
+                </div>
+                <p className="mt-2 text-sm font-semibold">{c.customer_name}</p>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                  {c.headline || c.message}
                 </p>
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <Link href="/app" target="_blank" className="rounded-full bg-violet-500 px-4 py-2 text-[13px] font-semibold text-white hover:bg-violet-400">Complain as a customer</Link>
-                  <button onClick={() => act(() => api('/api/desk/autopilot', { on: true }))} className="rounded-full border border-slate-300 px-4 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-50">Switch on autopilot</button>
+                <div
+                  className={`mt-3 text-[11px] font-medium ${c.status === 'NEEDS_YOU' ? 'text-amber-700' : c.status === 'FAILED' || c.status === 'ESCALATED' ? 'text-rose-700' : c.status === 'RESOLVED' ? 'text-emerald-700' : 'text-blue-700'}`}
+                >
+                  ● {STATUS[c.status]}
                 </div>
-              </div>
-            </section>
-          ) : (
+                {c.deadline_at && c.status !== 'RESOLVED' && (
+                  <div className="mt-1 text-[10px] text-slate-400">
+                    <Countdown deadline={c.deadline_at} compact /> · deadline
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </aside>
+        <main className="flex min-h-0 min-w-0 flex-col">
+          {kase ? (
             <>
-              <section key={kase.id} className="step-in">
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                  {ch && <span className={`rounded px-1.5 py-0.5 font-bold uppercase tracking-wider ${ch.tone}`}>{kase.channel_label}</span>}
-                  <span className="font-mono text-slate-400">{kase.id}</span>
-                  {kase.role && <span className="rounded bg-white px-1.5 py-0.5 font-medium text-slate-600 ring-1 ring-slate-200">We are the {kase.role.toLowerCase()}</span>}
-                  {kase.amount_paise ? <span className="rounded bg-white px-1.5 py-0.5 font-mono font-semibold text-slate-800 ring-1 ring-slate-200">{rs(kase.amount_paise)}</span> : null}
-                  {kase.utr && <span className="font-mono text-slate-400">UTR {kase.utr}</span>}
+              <div className="border-b bg-white px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-[.15em] text-blue-600">
+                    {kase.id} / {kase.channel_label}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {shown.brain === 'rules' ||
+                    (!shown.brain && meta?.brain === 'rules')
+                      ? 'Rules engine · fallback'
+                      : `AI agents · ${shown.model || meta?.model || 'Connecting'}`}
+                  </span>
                 </div>
-                <h1 className="mt-2 font-display text-[22px] font-semibold leading-snug tracking-[-0.03em] text-slate-900">
-                  {kase.channel === 'RECON'
-                    ? <>Reconciliation found a broken payment for {kase.customer_name}. <span className="text-slate-500">{kase.message}.</span></>
-                    : <>{kase.customer_name} wrote in: <span className="font-serif font-normal italic text-slate-600">“{first}”</span></>}
-                </h1>
-                {more.length > 0 && <p className="mt-1 text-[12.5px] text-slate-500">Then replied: “{more.join(' ').replace(/Customer adds: /g, '')}”</p>}
-              </section>
-
-              <Stepper run={run} focus={showReport || run.phase === 'idle' ? null : focus} onFocus={setPinned} />
-
-              {run.phase === 'idle' ? (
-                <section className="grid flex-1 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white">
-                  <div className="max-w-md p-6 text-center">
-                    <h2 className="font-display text-[18px] font-semibold tracking-tight">{kase.status === 'QUEUED' ? 'Queued for the agents' : 'Nothing to replay'}</h2>
-                    <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
-                      {kase.status !== 'QUEUED' ? 'This case ran before the server restarted. Its outcome is on the queue card.'
-                        : kase.channel === 'RECON' && !pilot?.on ? 'Reconciliation exceptions start when autopilot is on, or right now if you start it.'
-                          : 'Customer complaints start on their own as soon as an agent is free.'}
-                    </p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                  <h1 className="text-xl font-semibold tracking-tight">
+                    {kase.customer_name}{' '}
+                    <span className="font-normal text-slate-400">·</span>{' '}
+                    {rs(kase.amount_paise)}
+                  </h1>
+                  <div className="flex items-center gap-2">
                     {kase.status === 'QUEUED' && (
-                      <button onClick={() => act(() => api(`/api/desk/cases/${kase.id}/start`, {}))}
-                        className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-500 px-5 py-2.5 text-[13.5px] font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400">
-                        <Icon name="play" className="h-4 w-4" /> Start now
+                      <button
+                        className="desk-button desk-primary"
+                        disabled={busy}
+                        onClick={() => act(() => api(`/api/desk/cases/${kase.id}/start`, {}))}
+                      >
+                        <Icon name="play" className="h-3 w-3" /> Start agents
                       </button>
                     )}
+                    <button
+                      className={`desk-button ${follow && replay === null ? 'text-blue-700 bg-blue-50' : ''}`}
+                      aria-pressed={follow && replay === null}
+                      onClick={() => {
+                        setReplay(null)
+                        setFollow(true)
+                        setFocusTick((n) => n + 1)
+                      }}
+                    >
+                      <Icon name="play" className="h-3 w-3" />
+                      {run.phase === 'done' || run.phase === 'error'
+                        ? 'Latest outcome'
+                        : follow && replay === null
+                          ? 'Following live'
+                          : 'Follow live'}
+                    </button>
+                    <details className="relative">
+                      <summary className="desk-button cursor-pointer">
+                        Case details
+                      </summary>
+                      <div className="absolute right-0 top-11 z-30 grid w-48 gap-1 rounded-xl border bg-white p-2 shadow-xl">
+                        {(
+                          [
+                            ['conversation', 'Customer thread'],
+                            ['result', 'Actions & receipt'],
+                            ['evidence', 'Evidence'],
+                          ] as const
+                        ).map(([target, label]) => (
+                          <button
+                            key={target}
+                            className="rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-50"
+                            onClick={(e) => {
+                              setPanel(target)
+                              setFollow(false)
+                              e.currentTarget
+                                .closest('details')
+                                ?.removeAttribute('open')
+                            }}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                        {run.traceUrl && (
+                          <a
+                            href={run.traceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-2 text-xs text-blue-600"
+                          >
+                            neatlogs trace ↗
+                          </a>
+                        )}
+                      </div>
+                    </details>
                   </div>
-                </section>
-              ) : showReport && run.outcome ? (
-                <CaseReport o={run.outcome} run={run} onReplay={setPinned} />
-              ) : (
-                <>
-                  {pinned && run.outcome && <button onClick={() => setPinned(null)} className="-mb-1 self-start text-[12px] font-medium text-violet-700 hover:underline">← Back to the case report</button>}
-                  <AgentFocus node={focus} run={run} model={model} />
-                </>
-              )}
-              {run.phase === 'error' && <div className="rounded-xl bg-rose-50 p-3 text-[12px] text-rose-700">Run failed: {run.error}</div>}
+                </div>
+                <p
+                  className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500"
+                  title={kase.message}
+                >
+                  {kase.message}
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <WorkflowMap
+                  follow={follow && replay === null}
+                  focusTick={focusTick}
+                  model={
+                    shown.model ??
+                    (meta?.brain === 'rules' ? null : meta?.model) ??
+                    null
+                  }
+                  run={shown}
+                  kase={kase}
+                  selected={node}
+                  onSelect={pickNode}
+                  onEdge={(e) => {
+                    setEdge(e)
+                    setPanel('route')
+                    setFollow(false)
+                  }}
+                />
+              </div>
+              <div className="shrink-0 border-t bg-white px-5 py-3">
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="font-semibold">
+                    {replay === null
+                      ? 'Recorded activity'
+                      : 'Replay · recorded events'}
+                  </span>
+                  <span className="text-slate-400">
+                    {shown.steps.length} events ·{' '}
+                    {(shown.elapsedMs / 1000).toFixed(0)}s
+                  </span>
+                  {events.length > 0 && run.phase !== 'running' && (
+                    <button
+                      className="ml-auto text-blue-600"
+                      onClick={() => {
+                        setReplay(replay === null ? 0 : null)
+                        setFollow(false)
+                      }}
+                    >
+                      {replay === null ? 'Inspect replay' : 'Return to latest'}
+                    </button>
+                  )}
+                </div>
+                {replay !== null && (
+                  <input
+                    aria-label="Replay recorded events"
+                    type="range"
+                    className="mt-3 w-full accent-blue-600"
+                    min={0}
+                    max={Math.max(0, events.length - 1)}
+                    value={replay}
+                    onChange={(e) => setReplay(Number(e.target.value))}
+                  />
+                )}
+                <p className="mt-2 truncate text-xs text-slate-500">
+                  {[...shown.steps]
+                    .reverse()
+                    .find(
+                      (s) =>
+                        s.kind === 'decision' ||
+                        s.kind === 'finding' ||
+                        s.kind === 'call',
+                    )?.title || 'Waiting for the next recorded event'}
+                </p>
+              </div>
             </>
+          ) : (
+            <div className="grid min-h-[500px] flex-1 place-items-center p-8">
+              <div className="max-w-md text-center">
+                <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-blue-50 text-blue-600">
+                  <Icon name="orchestrator" className="h-8 w-8" />
+                </span>
+                <p className="mt-6 text-xs uppercase tracking-widest text-blue-600">
+                  Your resolution team is ready
+                </p>
+                <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+                  A problem arrives.
+                  <br />
+                  The agents take it from here.
+                </h1>
+                <p className="mt-4 text-sm leading-7 text-slate-500">
+                  Send a customer complaint or reconcile the sandbox bank.
+                  Follow the evidence, decisions, and verified outcome in one
+                  workspace.
+                </p>
+                <div className="mt-6 flex justify-center gap-3">
+                  <Link href="/app" className="desk-button desk-primary">
+                    Try customer help ↗
+                  </Link>
+                  <button
+                    className="desk-button"
+                    disabled={busy}
+                    onClick={() => act(() => api('/api/desk/recon', {}))}
+                  >
+                    Run reconciliation
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </main>
-
-        <ResultPanel kase={kase ?? undefined} run={run} live={live} deciding={deciding} onDecide={decide} />
+        <aside
+          data-tour="resolution"
+          className="workspace-panel flex min-h-[380px] min-w-0 flex-col border-l bg-white lg:col-span-2 lg:max-h-[480px] xl:col-span-1 xl:max-h-none"
+          key={`${panel}-${node}`}
+        >
+          <div className="flex items-center justify-between border-b px-4 py-3 text-xs font-semibold">
+            <span>
+              {panel === 'agent' && node
+                ? NODE_META[node].label
+                : panel === 'conversation'
+                  ? 'Customer conversation'
+                  : panel === 'route'
+                    ? 'Routing decision'
+                    : panel === 'build'
+                      ? 'Build evidence'
+                      : panel === 'evidence'
+                        ? 'Source evidence'
+                        : 'Actions & resolution'}
+            </span>
+            <span className="text-[10px] font-normal text-slate-400">
+              {replay !== null ? 'Historical state' : 'Case context'}
+            </span>
+          </div>
+          {panel === 'build' ? (
+            <div className="space-y-6 p-5 text-sm">
+              <div>
+                <h3 className="font-semibold">neatlogs / execution</h3>
+                <p className="mt-2 text-slate-500">
+                  Agent and tool spans for each traced case.
+                </p>
+                {run.traceUrl ? (
+                  <a
+                    className="mt-2 block text-blue-600"
+                    href={run.traceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open this case’s trace ↗
+                  </a>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-400">
+                    No trace link available for this case.
+                  </p>
+                )}
+              </div>
+              <div>
+                <h3 className="font-semibold">Entire / build provenance</h3>
+                <a
+                  className="mt-2 block text-blue-600"
+                  href="https://entire.io/gh/prabhat-gp/neathack-upi/trails/1"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Checkpoints and review trail ↗
+                </a>
+              </div>
+              <div>
+                <h3 className="font-semibold">cfo.ai / business plan</h3>
+                <p className="mt-2 text-slate-500">
+                  Integration pending. The DisputePro MCP exposes measured desk
+                  metrics for the planned business analysis.
+                </p>
+              </div>
+            </div>
+          ) : !kase ? (
+            <p className="p-5 text-sm text-slate-400">
+              Select a case to inspect the team’s work.
+            </p>
+          ) : panel === 'agent' && node ? (
+            <AgentFocus
+              node={node}
+              run={shown}
+              model={
+                shown.brain === 'rules'
+                  ? null
+                  : (shown.model ??
+                    (meta?.brain === 'rules' ? null : meta?.model) ??
+                    null)
+              }
+              follow={follow && replay === null}
+            />
+          ) : panel === 'conversation' ? (
+            <div className="space-y-4 overflow-auto p-4">
+              <p className="text-xs text-slate-400">
+                {kase.channel_label} · {kase.id}
+              </p>
+              {(kase.messages ?? []).map((m) => (
+                <div
+                  key={m.id}
+                  className={`rounded-xl p-3 text-sm leading-6 ${m.sender === 'customer' ? 'ml-5 bg-blue-50' : 'mr-5 bg-slate-50'}`}
+                >
+                  <div className="mb-1 text-[10px] font-semibold uppercase text-slate-400">
+                    {m.sender === 'customer'
+                      ? kase.customer_name
+                      : 'Sahyadri Bank'}{' '}
+                    · {m.channel}
+                  </div>
+                  {m.text}
+                  <time className="mt-2 block text-[10px] text-slate-400">
+                    {new Date(m.created_at).toLocaleString('en-IN')}
+                  </time>
+                </div>
+              ))}
+              <Link
+                className="desk-button"
+                href={`/app?c=${kase.customer_id}&case=${kase.id}`}
+              >
+                Open customer case ↗
+              </Link>
+            </div>
+          ) : panel === 'route' ? (
+            <div className="space-y-4 overflow-auto p-5">
+              <p className="text-sm font-semibold">
+                {edge
+                  .split('>')
+                  .map((n) => NODE_META[n as NodeId]?.label ?? n)
+                  .join(' → ')}
+              </p>
+              <p className="text-xs text-slate-500">
+                Recorded handoff: {shown.edges[edge] ?? 'intake processing'}.
+                Related routing records appear below.
+              </p>
+              {shown.steps
+                .filter(
+                  (s) => s.node === 'orchestrator' && s.kind === 'decision',
+                )
+                .map((s) => (
+                  <div key={s.id} className="rounded-xl border p-3">
+                    <p className="text-sm font-medium">{s.title}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-slate-500">
+                      {s.detail}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          ) : panel === 'evidence' ? (
+            <EvidencePanel run={shown} />
+          ) : (
+            <div className="min-h-0 overflow-auto">
+              {shown.outcome &&
+                shown.outcome.status !== 'AWAITING_APPROVAL' && (
+                  <CaseReport
+                    o={shown.outcome}
+                    run={shown}
+                    onReplay={pickNode}
+                  />
+                )}
+              <ResultPanel
+                kase={kase}
+                run={shown}
+                live={replay === null ? live : (shown.outcome?.after ?? null)}
+                deciding={
+                  busy ||
+                  replay !== null ||
+                  !connected ||
+                  kase.status !== 'NEEDS_YOU'
+                }
+                onDecide={decide}
+              />
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   )

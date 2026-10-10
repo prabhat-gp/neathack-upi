@@ -115,6 +115,7 @@ export const NODE_META: Record<NodeId, Tone & { label: string; role: string; ai:
   investigator: { ...TONES.sky, label: 'Investigator', role: 'Gathers evidence from every party', ai: true },
   policy: { ...TONES.amber, label: 'Policy', role: 'Applies RBI rules · computes what is owed', ai: true },
   resolver: { ...TONES.teal, label: 'Resolver', role: 'Scores risk · plans & executes', ai: true },
+  executor: { ...TONES.slate, label: 'Execution engine', role: 'Rechecks guardrails and confirms actions', ai: false },
   human: { ...TONES.rose, label: 'Human approval', role: 'Ops reviewer sign-off', ai: false },
   outcome: { ...TONES.indigo, label: 'Outcome', role: 'Case closed with audit trail', ai: false },
 }

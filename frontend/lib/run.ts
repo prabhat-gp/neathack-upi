@@ -1,16 +1,34 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export type AgentNode = 'intake' | 'orchestrator' | 'investigator' | 'policy' | 'resolver'
-export type NodeId = 'complaint' | AgentNode | 'human' | 'outcome'
+export type AgentNode =
+  'intake' | 'orchestrator' | 'investigator' | 'policy' | 'resolver'
+export type NodeId = 'complaint' | AgentNode | 'human' | 'executor' | 'outcome'
 export type PartyId = 'cbs' | 'npci' | 'bene' | 'acquirer' | 'ncrp'
 export type NodeStatus = 'idle' | 'running' | 'done' | 'skipped' | 'waiting'
 export type EdgeState = 'idle' | 'active' | 'taken' | 'skipped'
 export type StepStatus = 'running' | 'ok' | 'warn' | 'bad' | 'info'
 
 export const PARTY_IDS: PartyId[] = ['cbs', 'npci', 'bene', 'acquirer', 'ncrp']
-export const NODE_IDS: NodeId[] = ['complaint', 'intake', 'orchestrator', 'investigator', 'policy', 'resolver', 'human', 'outcome']
+export const NODE_IDS: NodeId[] = [
+  'complaint',
+  'intake',
+  'orchestrator',
+  'investigator',
+  'policy',
+  'resolver',
+  'executor',
+  'human',
+  'outcome',
+]
 export const FLOW_EDGES = [
   'complaint>orchestrator',
+  'complaint>intake',
+  'intake>orchestrator',
+  'resolver>executor',
+  'executor>human',
+  'human>executor',
+  'executor>outcome',
   'orchestrator>investigator',
   'orchestrator>policy',
   'orchestrator>resolver',
@@ -40,9 +58,24 @@ export interface Case {
   resolved: string | null
 }
 
-export type DeskStatus = 'QUEUED' | 'WORKING' | 'NEEDS_YOU' | 'NEEDS_INFO' | 'RESOLVED' | 'ESCALATED' | 'FAILED'
+export type DeskStatus =
+  | 'QUEUED'
+  | 'WORKING'
+  | 'NEEDS_YOU'
+  | 'NEEDS_INFO'
+  | 'RESOLVED'
+  | 'ESCALATED'
+  | 'FAILED'
 
-export interface Message { id: number; customer_id: string; case_id: string | null; sender: 'customer' | 'bank'; channel: string; text: string; created_at: string }
+export interface Message {
+  id: number
+  customer_id: string
+  case_id: string | null
+  sender: 'customer' | 'bank'
+  channel: string
+  text: string
+  created_at: string
+}
 
 export interface DeskCase {
   id: string
@@ -65,6 +98,7 @@ export interface DeskCase {
   deadline_at?: string | null
   initiated_at?: string
   messages?: Message[]
+  outcome?: Outcome | null
 }
 
 export interface Meta {
@@ -92,7 +126,13 @@ export interface Step {
   result?: string
   data?: unknown
   party?: PartyId
-  http?: { method?: string; path?: string; body?: unknown; status?: number; latency_ms?: number }
+  http?: {
+    method?: string
+    path?: string
+    body?: unknown
+    status?: number
+    latency_ms?: number
+  }
   t: number
   arrivedAt: number
   streamed?: boolean
@@ -102,7 +142,7 @@ export interface Action {
   type: string
   utr: string
   amount_paise: number
-  state: 'proposed' | 'done' | 'scheduled' | 'cancelled'
+  state: 'proposed' | 'done' | 'scheduled' | 'cancelled' | 'failed'
   ref?: string
   note?: string
   reason?: string
@@ -112,36 +152,108 @@ export interface Action {
 export interface Snapshot {
   role: 'REMITTER' | 'BENEFICIARY'
   cbs: {
-    name: string; account_no: string; balance_paise: number; status: string
-    postings: { type: string; amount_paise: number; utr_ref: string; id: string }[]
+    name: string
+    account_no: string
+    balance_paise: number
+    status: string
+    postings: {
+      type: string
+      amount_paise: number
+      utr_ref: string
+      id: string
+    }[]
     blocked_vpas: string[]
     suspense: { id: string; amount_paise: number; status: string }[]
   }
-  npci: { overall: string; credit_leg: string; tcc: string | null; reversal_leg: string; complaints: { id: string; type: string; status: string; resolution: string | null }[] }
-  bene: { bank?: string; holder_name?: string; vpa?: string; available_paise?: number; lien_paise?: number; credit: { status: string; credited_at: string | null; credit_ref: string | null } | null }
-  acquirer: { refunds: { id: string; utr: string; amount_paise: number; status: string }[] }
-  ncrp: { reports_on_payee: number; our_reports: { ack_no: string; utr: string; amount_paise: number }[] }
+  npci: {
+    overall: string
+    credit_leg: string
+    tcc: string | null
+    reversal_leg: string
+    complaints: {
+      id: string
+      type: string
+      status: string
+      resolution: string | null
+    }[]
+  }
+  bene: {
+    bank?: string
+    holder_name?: string
+    vpa?: string
+    available_paise?: number
+    lien_paise?: number
+    credit: {
+      status: string
+      credited_at: string | null
+      credit_ref: string | null
+    } | null
+  }
+  acquirer: {
+    refunds: {
+      id: string
+      utr: string
+      amount_paise: number
+      status: string
+    }[]
+  }
+  ncrp: {
+    reports_on_payee: number
+    our_reports: { ack_no: string; utr: string; amount_paise: number }[]
+  }
 }
 
 export interface Outcome {
-  status: 'RESOLVED' | 'ACTIONED' | 'CLOSED' | 'MONITORING' | 'AWAITING_APPROVAL' | 'ESCALATED' | 'NEEDS_INFO'
+  status:
+    | 'RESOLVED'
+    | 'ACTIONED'
+    | 'CLOSED'
+    | 'MONITORING'
+    | 'AWAITING_APPROVAL'
+    | 'ESCALATED'
+    | 'NEEDS_INFO'
+    | 'FAILED'
   headline: string
   summary: string
   case_type: string
-  findings: { case_type: string; summary: string; evidence: { source: string; fact: string }[]; claim_matches_evidence: boolean }
-  ruling: { reversal_due_paise: number; compensation_due_paise: number; liability: string; citation: string; reasoning: string } | null
+  findings: {
+    case_type: string
+    summary: string
+    evidence: { source: string; fact: string }[]
+    claim_matches_evidence: boolean
+  }
+  ruling: {
+    reversal_due_paise: number
+    compensation_due_paise: number
+    liability: string
+    citation: string
+    reasoning: string
+  } | null
   risk: { score: number; band: 'LOW' | 'MEDIUM' | 'HIGH' } | null
   actions: Action[]
   rejected: Action[]
   human_reason: string | null
-  deadline: { tat: string; deadline_at: string; seconds_left: number; met: boolean } | null
+  deadline: {
+    tat: string
+    deadline_at: string
+    seconds_left: number
+    met: boolean
+  } | null
   penalty_paid_paise: number
   refunded_paise: number
   frozen_paise: number
-  ops: { api_calls: number; parties: string[]; human_touches: number; seconds: number }
+  ops: {
+    api_calls: number
+    parties: string[]
+    human_touches: number
+    seconds: number
+  }
   customer_message: string
   citation: string | null
-  usage: Record<string, { input_tokens: number; output_tokens: number; llm_calls: number }>
+  usage: Record<
+    string,
+    { input_tokens: number; output_tokens: number; llm_calls: number }
+  >
   after: Snapshot | null
 }
 
@@ -150,11 +262,15 @@ export interface RunState {
   runId?: string
   traceUrl?: string | null
   brain?: string
+  model?: string | null
   brainLabel?: string
   nodes: Record<NodeId, NodeState>
   edges: Record<string, EdgeState>
   steps: Step[]
-  usage: Record<string, { input_tokens: number; output_tokens: number; llm_calls: number }>
+  usage: Record<
+    string,
+    { input_tokens: number; output_tokens: number; llm_calls: number }
+  >
   before?: Snapshot | null
   outcome?: Outcome
   error?: string
@@ -164,7 +280,9 @@ export interface RunState {
 export function initialRunState(): RunState {
   return {
     phase: 'idle',
-    nodes: Object.fromEntries(NODE_IDS.map((n) => [n, { status: 'idle' }])) as Record<NodeId, NodeState>,
+    nodes: Object.fromEntries(
+      NODE_IDS.map((n) => [n, { status: 'idle' }]),
+    ) as Record<NodeId, NodeState>,
     edges: Object.fromEntries(FLOW_EDGES.map((e) => [e, 'idle'])),
     steps: [],
     usage: {},
@@ -183,41 +301,107 @@ export function reduceRun(state: RunState, ev: RunEvent): RunState {
     case 'resume':
       return { ...state, phase: 'running', outcome: undefined }
     case 'run_started':
-      return { ...initialRunState(), phase: 'running', runId: ev.run_id, traceUrl: ev.trace_url, brain: ev.brain, brainLabel: ev.brain_label, before: ev.before }
+      return {
+        ...initialRunState(),
+        phase: 'running',
+        runId: ev.run_id,
+        traceUrl: ev.trace_url,
+        brain: ev.brain,
+        brainLabel: ev.brain_label,
+        model: ev.model,
+        before: ev.before,
+      }
     case 'node': {
       const prev = state.nodes[ev.node as NodeId]
       return {
         ...state,
         elapsedMs,
-        nodes: { ...state.nodes, [ev.node]: { ...prev, status: ev.status, activity: ev.activity ?? prev.activity, durationMs: ev.duration_ms ?? prev.durationMs } },
+        nodes: {
+          ...state.nodes,
+          [ev.node]: {
+            ...prev,
+            status: ev.status,
+            activity: ev.activity ?? prev.activity,
+            durationMs: ev.duration_ms ?? prev.durationMs,
+          },
+        },
       }
     }
     case 'edge':
-      return { ...state, elapsedMs, edges: { ...state.edges, [ev.edge]: ev.state } }
+      return {
+        ...state,
+        elapsedMs,
+        edges: { ...state.edges, [ev.edge]: ev.state },
+      }
     case 'usage':
-      return { ...state, usage: { ...state.usage, [ev.node]: { input_tokens: ev.input_tokens, output_tokens: ev.output_tokens, llm_calls: ev.llm_calls } } }
+      return {
+        ...state,
+        usage: {
+          ...state.usage,
+          [ev.node]: {
+            input_tokens: ev.input_tokens,
+            output_tokens: ev.output_tokens,
+            llm_calls: ev.llm_calls,
+          },
+        },
+      }
     case 'before':
       return { ...state, before: ev.before }
     case 'idle':
       return state
     case 'step': {
       const step: Step = {
-        id: ev.id, node: ev.node, kind: ev.kind, title: ev.title, detail: ev.detail, status: ev.status,
-        party: ev.party, http: ev.http, t: ev.t, arrivedAt: Date.now(), streamed: ev.streamed,
+        id: ev.id,
+        node: ev.node,
+        kind: ev.kind,
+        title: ev.title,
+        detail: ev.detail,
+        status: ev.status,
+        party: ev.party,
+        http: ev.http,
+        t: ev.t,
+        arrivedAt: Date.now(),
+        streamed: ev.streamed,
       }
       const node = state.nodes[step.node]
       const activity =
-        step.kind === 'call' ? `→ ${step.title}` : step.kind === 'check' ? `Checking: ${step.title}` : step.kind === 'think' ? 'Thinking…' : step.kind === 'turn' ? `Calling the model · ${step.title}` : step.title
-      return { ...state, elapsedMs, steps: [...state.steps, step], nodes: { ...state.nodes, [step.node]: { ...node, activity } } }
+        step.kind === 'call'
+          ? `→ ${step.title}`
+          : step.kind === 'check'
+            ? `Checking: ${step.title}`
+            : step.kind === 'think'
+              ? 'Thinking…'
+              : step.kind === 'turn'
+                ? `Calling the model · ${step.title}`
+                : step.title
+      return {
+        ...state,
+        elapsedMs,
+        steps: [...state.steps, step],
+        nodes: { ...state.nodes, [step.node]: { ...node, activity } },
+      }
     }
     case 'step_delta':
-      return { ...state, steps: state.steps.map((s) => (s.id === ev.id ? { ...s, detail: (s.detail ?? '') + ev.text } : s)) }
+      return {
+        ...state,
+        steps: state.steps.map((s) =>
+          s.id === ev.id ? { ...s, detail: (s.detail ?? '') + ev.text } : s,
+        ),
+      }
     case 'step_update':
       return {
         ...state,
         elapsedMs,
         steps: state.steps.map((s) =>
-          s.id === ev.id ? { ...s, status: ev.status, result: ev.result ?? s.result, data: ev.data ?? s.data, http: { ...s.http, ...ev.http } } : s,
+          s.id === ev.id
+            ? {
+                ...s,
+                status: ev.status,
+                result: ev.result ?? s.result,
+                data: ev.data ?? s.data,
+                http: { ...s.http, ...ev.http },
+              }
+            : s,
         ),
       }
     case 'run_finished': {
@@ -225,13 +409,40 @@ export function reduceRun(state: RunState, ev: RunEvent): RunState {
       const edges = { ...state.edges }
       const nodes = { ...state.nodes }
       if (!awaiting) {
-        for (const k of Object.keys(edges)) if (edges[k] === 'idle') edges[k] = 'skipped'
-        for (const k of NODE_IDS) if (nodes[k].status === 'idle') nodes[k] = { ...nodes[k], status: 'skipped' }
+        for (const k of Object.keys(edges))
+          if (edges[k] === 'idle') edges[k] = 'skipped'
+        for (const k of NODE_IDS)
+          if (nodes[k].status === 'idle')
+            nodes[k] = { ...nodes[k], status: 'skipped' }
       }
-      return { ...state, elapsedMs, edges, nodes, outcome: ev.outcome, phase: awaiting ? 'awaiting' : 'done' }
+      return {
+        ...state,
+        elapsedMs,
+        edges,
+        nodes,
+        outcome: ev.outcome,
+        phase: awaiting ? 'awaiting' : 'done',
+      }
     }
     case 'run_failed':
-      return { ...state, phase: 'error', error: ev.error }
+      return {
+        ...state,
+        phase: 'error',
+        error: ev.error,
+        outcome: ev.outcome ?? state.outcome,
+        nodes: Object.fromEntries(
+          Object.entries(state.nodes).map(([id, node]) => [
+            id,
+            node.status === 'running'
+              ? {
+                  ...node,
+                  status: 'waiting',
+                  activity: 'Interrupted — review required',
+                }
+              : node,
+          ]),
+        ) as Record<NodeId, NodeState>,
+      }
     default:
       return state
   }
@@ -249,7 +460,12 @@ export function partyLinks(steps: Step[]): PartyLink[] {
   for (const s of steps) {
     if (s.kind !== 'call' || !s.party) continue
     const key = `${s.node}>${s.party}`
-    const link = map.get(key) ?? { agent: s.node, party: s.party, calls: 0, inflight: 0 }
+    const link = map.get(key) ?? {
+      agent: s.node,
+      party: s.party,
+      calls: 0,
+      inflight: 0,
+    }
     link.calls += 1
     if (s.status === 'running') link.inflight += 1
     map.set(key, link)
@@ -258,29 +474,52 @@ export function partyLinks(steps: Step[]): PartyLink[] {
 }
 
 /** Follow a run that may already be in progress: replays its events, then streams live ones until it goes idle. */
-export async function followRun(runId: string, onEvent: (ev: RunEvent) => void, signal?: AbortSignal) {
+export async function followRun(
+  runId: string,
+  onEvent: (ev: RunEvent) => void,
+  signal?: AbortSignal,
+) {
   const res = await fetch(`${API_URL}/api/runs/${runId}/events`, { signal })
   if (!res.ok || !res.body) throw new Error(`Run unavailable (${res.status})`)
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buf = ''
+  let idle = false
   for (;;) {
     const { done, value } = await reader.read()
     if (done) break
     buf += decoder.decode(value, { stream: true })
     let idx
     while ((idx = buf.indexOf('\n\n')) >= 0) {
-      const line = buf.slice(0, idx).split('\n').find((l) => l.startsWith('data: '))
+      const line = buf
+        .slice(0, idx)
+        .split('\n')
+        .find((l) => l.startsWith('data: '))
       buf = buf.slice(idx + 2)
-      if (line) onEvent(JSON.parse(line.slice(6)))
+      if (line) {
+        const event = JSON.parse(line.slice(6))
+        if (event.type === 'idle') idle = true
+        onEvent(event)
+      }
     }
   }
+  if (!idle && !signal?.aborted)
+    throw new Error(
+      'Live connection ended before the run became idle. Reconnect to retrieve missed events.',
+    )
 }
 
 export async function api<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, body === undefined ? undefined : {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-  })
+  const res = await fetch(
+    `${API_URL}${path}`,
+    body === undefined
+      ? undefined
+      : {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+  )
   if (!res.ok) {
     const d = await res.json().catch(() => ({}))
     throw new Error(d.detail ?? `Request failed (${res.status})`)
@@ -288,7 +527,12 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
   return res.json()
 }
 
-export async function streamEvents(path: string, body: unknown, onEvent: (ev: RunEvent) => void, signal?: AbortSignal) {
+export async function streamEvents(
+  path: string,
+  body: unknown,
+  onEvent: (ev: RunEvent) => void,
+  signal?: AbortSignal,
+) {
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -328,5 +572,10 @@ export function timeLeft(seconds: number) {
 
 export function rs(p: number | null | undefined) {
   if (p == null) return '—'
-  return '₹' + (p / 100).toLocaleString('en-IN', { maximumFractionDigits: p % 100 ? 2 : 0 })
+  return (
+    '₹' +
+    (p / 100).toLocaleString('en-IN', {
+      maximumFractionDigits: p % 100 ? 2 : 0,
+    })
+  )
 }
