@@ -18,6 +18,7 @@ class Run:
         self.pending_plan: dict | None = None
         self.usage: dict[str, dict] = {}
         self.calls: list[str] = []
+        self.cost_usd = 0.0  # reported by the model provider (Claude Agent SDK), not estimated
         self._seq = 0
 
     def ms(self) -> int:

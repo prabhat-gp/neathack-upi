@@ -1,6 +1,7 @@
 """DisputePro API. /api runs the agents (SSE); /sandbox hosts the simulated counterparties."""
 
 import asyncio
+import contextlib
 import json
 from datetime import datetime, time, timedelta
 
@@ -10,6 +11,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 import config
+import ledger
+import mcp_server
 from engine.cases import build_cases, by_id
 from engine.orchestrator import decide, orchestrate
 from engine.parties import PARTIES
@@ -18,9 +21,19 @@ from engine.run import Run
 from sandbox import db
 from sandbox.routes import router as sandbox_router
 
-app = FastAPI(title="DisputePro")
+_mcp_app = mcp_server.http_app()
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_app):
+    async with mcp_server.server.session_manager.run():
+        yield
+
+
+app = FastAPI(title="DisputePro", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(sandbox_router)
+app.mount("/mcp", _mcp_app)  # DisputePro MCP server (cfo.ai, Claude Code)
 
 PACES = {"slow": 1.0, "normal": 0.5, "fast": 0.18, "instant": 0.0}
 RUNS: dict[str, Run] = {}
@@ -33,7 +46,10 @@ def _sse(run: Run, work):
             getter = asyncio.create_task(run.queue.get())
             done, _ = await asyncio.wait({getter, task}, return_when=asyncio.FIRST_COMPLETED)
             if getter in done:
-                yield f"data: {json.dumps(getter.result(), default=str)}\n\n"
+                ev = getter.result()
+                if ev["type"] == "run_finished":
+                    ledger.record(run, ev["outcome"], config.model_name())
+                yield f"data: {json.dumps(ev, default=str)}\n\n"
                 continue
             getter.cancel()
             while not run.queue.empty():
@@ -43,6 +59,12 @@ def _sse(run: Run, work):
             break
 
     return StreamingResponse(body(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.get("/api/metrics")
+def metrics():
+    """Same numbers as the MCP desk_metrics tool, as plain JSON (for cfo.ai's API connector)."""
+    return {**ledger.summary(), "agent_model": config.model_name(), "recent_runs": ledger.runs(10)}
 
 
 @app.get("/health")

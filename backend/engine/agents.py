@@ -23,6 +23,9 @@ How to work:
 - Collect requests, very new payees, or alleged fraud: beneficiary_account_profile and ncrp_lookup.
 - The customer's words may be wrong, vague or in Hindi/Hinglish. Records win. If the complaint describes a different payment
   than the UTR (amount, payee, date), list recent transactions with get_statement_window and say which one they mean.
+- If Crustdata tools (mcp__crustdata__*) are available, use them for outside intelligence, at most two calls:
+  for suspected fraud, search the web/social posts for the payee handle or scam pattern (e.g. "KYC update" UPI collect scams);
+  for merchant payments, confirm the merchant is a real registered business. Quote what you found in the summary.
 
 Case types:
 P2P_NOT_CREDITED — we are remitter; person-to-person; credit not confirmed (DEEMED/TIMEOUT/FAILED, no TCC); not reversed.
@@ -69,7 +72,7 @@ def _case_brief(run: Run) -> str:
 async def investigator(run: Run, instructions: str) -> dict:
     if run.brain != "rules":
         task = f"{_case_brief(run)}\n\nOrchestrator's instruction: {instructions}"
-        out = await run_agent(run, "investigator", INVESTIGATOR_SYSTEM, T.INVESTIGATOR_TOOLS, task, "submit_findings")
+        out = await run_agent(run, "investigator", INVESTIGATOR_SYSTEM, T.INVESTIGATOR_TOOLS, task, "submit_findings", external=True)
     else:
         out = await _investigator_rules(run)
     run.facts["findings"] = out

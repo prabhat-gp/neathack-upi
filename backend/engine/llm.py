@@ -55,8 +55,12 @@ async def _streamed_turn(run: Run, node: str, system: str, tools: list[Tool], me
 
 
 async def run_agent(run: Run, node: str, system: str, tools: list[Tool], task: str, submit: str,
-                    validate=None) -> dict:
-    """Loop until the agent calls its submit tool. `validate(input) -> str | None` can bounce a bad submission."""
+                    validate=None, external: bool = False) -> dict:
+    """Loop until the agent calls its submit tool. `validate(input) -> str | None` can bounce a bad submission.
+    `external` also gives the agent the hosted Crustdata MCP server (Claude Agent SDK brain only)."""
+    if config.brain() == "claude-code":
+        from .agent_sdk import run_agent_sdk
+        return await run_agent_sdk(run, node, system, tools, task, submit, validate, external)
     by_name = {t.name: t for t in tools}
     messages: list[dict] = [{"role": "user", "content": task}]
     for turn in range(1, config.LLM_MAX_TURNS + 1):
