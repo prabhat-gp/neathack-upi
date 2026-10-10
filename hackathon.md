@@ -18,12 +18,14 @@ _Pending: builder to choose names/handles to publish._
 ## Stack
 | Part | What is actually used |
 |---|---|
-| Agents | Python, FastAPI, Anthropic SDK tool-use loop with streaming (`backend/engine/llm.py`), target model Claude on **AWS Bedrock** |
+| Agents | Python, FastAPI, Claude via the **Claude Agent SDK** (Claude Code token), tools served from an in-process MCP server (`backend/engine/agent_sdk.py`); Anthropic SDK loop kept for API-key/Bedrock (`backend/engine/llm.py`). The hackathon AWS account allows EC2/Lambda/IAM only, so Bedrock is not used. |
+| Crustdata | Hosted MCP server given to the Investigator for live web/company intel; calls shown as a party in the console |
+| DisputePro MCP | Our own MCP server at `/mcp` (`desk_metrics`, `recent_runs`, `open_exceptions`) and `/api/metrics`, fed by a run ledger (tokens, provider-reported cost, time, deadline, penalty) — for cfo.ai and Claude Code |
 | Agent fallback | Deterministic rules brain with identical tools/outputs, used only when no LLM credentials are set |
 | Counterparties | Sandbox CBS, NPCI switch + UDIR, beneficiary banks, merchant acquirer, NCRP portal — SQLite state, HTTP APIs (`backend/sandbox/`) |
 | Frontend | Next.js 14, Tailwind: `/` landing page, `/console` exceptions desk |
 | neatlogs | SDK wired (`backend/tracing.py`): workflow + per-agent spans, Anthropic/Bedrock auto-instrumentation — **pending API key** |
-| Entire | **Pending**: repo git-initialised, Entire not yet enabled |
+| Entire | CLI 0.11.4 enabled for Claude Code (`entire enable --agent claude-code`); GitHub repo + mirror pending |
 | cfo.ai | **Pending**: business plan via cfo.ai MCP server (`https://api.cfo.ai/mcp`) |
 
 ## Build log
@@ -41,6 +43,11 @@ _Pending: builder to choose names/handles to publish._
 - **Tests that actually ran:** all five scenes end to end on the rules brain via API and in the browser (₹0 penalty on all
   deadline scenes; re-runs detected as already resolved; fraud approval froze a partial ₹31,200 lien). The Claude loop was
   tested only against scripted SDK responses; the streaming version has **not** been run against a real model yet.
+
+- Afternoon (2026-10-10): researched every partner tool in the browser; added the Claude Agent SDK brain, Crustdata MCP in the
+  Investigator, the DisputePro MCP server + run ledger, and scene 6 (beneficiary bank API outage).
+- **Tests that actually ran:** MCP `tools/list` and `desk_metrics` over HTTP; scene 6 on the rules brain (504 → visible retry →
+  504 → decided on NPCI evidence → refunded with 12h 28m to spare, ₹0 penalty). The Agent SDK path has **not** run yet (token pending).
 
 ## Demo
 _Pending: URL and video. Local: backend `uvicorn main:app --port 8000`, frontend `npm run build && npm start -- -p 3001`._
