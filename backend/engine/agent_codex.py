@@ -25,7 +25,9 @@ class AgentError(Exception):
 
 GROUND_RULES = """You are running inside DisputePro as one agent of a multi-agent desk.
 Use ONLY the MCP tools provided (server "disputepro"). Do not run shell commands, read files or browse.
-Before each batch of tool calls, write one or two sentences of reasoning. Finish by calling {submit} exactly once."""
+Before each batch of tool calls, write one or two sentences of reasoning. Finish by calling {submit} exactly once.
+Money: every *_paise field is in paise (₹1 = 100 paise) and comes with a matching *_inr field. When you write an amount
+in words, copy the *_inr value; when a tool asks for *_paise, pass the paise number unchanged."""
 
 NUDGE = ("You stopped without calling {submit}. Your work is not recorded until you do. Call {submit} now with your "
          "conclusion from the evidence you already gathered.")

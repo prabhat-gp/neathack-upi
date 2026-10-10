@@ -50,6 +50,9 @@ MCP_API_TOKEN = os.environ.get("MCP_API_TOKEN", "")
 
 AUTO_APPROVE_LIMIT_PAISE = int(os.environ.get("AUTO_APPROVE_LIMIT_PAISE", str(10_000_00)))
 NEATLOGS_API_KEY = os.environ.get("NEATLOGS_API_KEY", "")
+# Not secrets: used to link each run to its trace in the neatlogs dashboard
+NEATLOGS_ORG_ID = os.environ.get("NEATLOGS_ORG_ID", "")
+NEATLOGS_PROJECT_ID = os.environ.get("NEATLOGS_PROJECT_ID", "")
 
 
 def brain() -> str:

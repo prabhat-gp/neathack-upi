@@ -33,9 +33,28 @@ def _ok(id_, result):
     return {"jsonrpc": "2.0", "id": id_, "result": result}
 
 
+def _inr(p: int) -> str:
+    r = p / 100
+    return "₹" + (f"{r:,.2f}" if p % 100 else f"{int(r):,}")
+
+
+def _rupees(v):
+    """Next to every *_paise amount add the same amount in rupees, so the model never has to convert (and misread) it."""
+    if isinstance(v, dict):
+        out = {}
+        for k, x in v.items():
+            out[k] = _rupees(x)
+            if k.endswith("_paise") and isinstance(x, int):
+                out[k[:-6] + "_inr"] = _inr(x)
+        return out
+    if isinstance(v, list):
+        return [_rupees(x) for x in v]
+    return v
+
+
 def _text(out, is_error=False):
-    return {"content": [{"type": "text", "text": json.dumps(out, default=str)[:6000] if not isinstance(out, str) else out}],
-            "isError": is_error}
+    body = out if isinstance(out, str) else json.dumps(_rupees(out), default=str, ensure_ascii=False)[:6000]
+    return {"content": [{"type": "text", "text": body}], "isError": is_error}
 
 
 async def _call(s: dict, name: str, args: dict) -> dict:

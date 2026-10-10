@@ -106,7 +106,9 @@ async def snapshot(run: Run) -> dict | None:
 async def orchestrate(run: Run):
     c = run.case
     run.facts["before"] = await snapshot(run)
+    run.trace_url = tracing.trace_url()
     await run.emit("run_started", run_id=run.id, case=c, brain=run.brain, brain_label=config.brain_label(), model=config.model_name(),
+                   trace_url=run.trace_url,
                    before=run.facts["before"])
     sweep = c["trigger"] == "sweep"
     await run.node("complaint", "done", activity=(f"Recon sweep · {c['settlement_date']}" if sweep else f"Complaint · {c['customer_name']}"), pause=0.3)

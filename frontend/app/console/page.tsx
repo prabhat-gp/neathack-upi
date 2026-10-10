@@ -2,30 +2,27 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import AgentColumn from '@/components/desk/AgentColumn'
-import CaseRail from '@/components/desk/CaseRail'
-import { OrchestratorBar, PartyBus } from '@/components/desk/Orchestrator'
+import AgentFocus from '@/components/desk/AgentFocus'
+import CaseRail, { type CaseStatus } from '@/components/desk/CaseRail'
+import CaseReport from '@/components/desk/CaseReport'
 import ResultPanel from '@/components/desk/ResultPanel'
-import { PARTY_STYLE } from '@/components/desk/StepItem'
+import Stepper from '@/components/desk/Stepper'
 import { Icon } from '@/components/meta'
-import { API_URL, initialRunState, reduceRun, rs, streamEvents, type Case, type Meta, type PartyId, type Snapshot } from '@/lib/run'
+import { API_URL, initialRunState, reduceRun, rs, streamEvents, type Case, type Meta, type NodeId, type Snapshot } from '@/lib/run'
 
-const PACES = [
-  { id: 'slow', label: 'Slow' },
-  { id: 'normal', label: 'Normal' },
-  { id: 'fast', label: 'Fast' },
-] as const
+const PACES = [{ id: 'slow', label: 'Slow' }, { id: 'normal', label: 'Normal' }, { id: 'fast', label: 'Fast' }] as const
 
 export default function Desk() {
   const [meta, setMeta] = useState<Meta | null>(null)
   const [cases, setCases] = useState<Case[]>([])
   const [apiError, setApiError] = useState<string | null>(null)
-  const [selected, setSelected] = useState('deemed-outward')
+  const [selected, setSelected] = useState('bene-outage')
   const [pace, setPace] = useState<(typeof PACES)[number]['id']>('normal')
   const [run, dispatch] = useReducer(reduceRun, undefined, initialRunState)
   const [deciding, setDeciding] = useState(false)
   const [live, setLive] = useState<Snapshot | null>(null)
-  const [resolved, setResolved] = useState<Record<string, string>>({})
+  const [status, setStatus] = useState<Record<string, CaseStatus>>({})
+  const [pinned, setPinned] = useState<NodeId | null>(null)
   const abort = useRef<AbortController | null>(null)
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([])
   const [custom, setCustom] = useState({ customer_id: '', utr: '', complaint: '' })
@@ -41,7 +38,7 @@ export default function Desk() {
   const kase = isCustom ? customCase : cases.find((c) => c.id === selected)
   const running = run.phase === 'running'
   const llm = !!meta && meta.brain !== 'rules'
-  const model = meta?.model ?? null
+  const model = llm ? meta?.model ?? null : null
 
   async function pickCustomer(id: string) {
     setCustom({ customer_id: id, utr: '', complaint: custom.complaint })
@@ -52,7 +49,6 @@ export default function Desk() {
     const r = await fetch(`${API_URL}/sandbox/snapshot?customer_id=${c.customer_id}&utr=${c.utr}`)
     if (r.ok) setLive(await r.json())
   }, [])
-
   const loadCases = useCallback(() => fetch(`${API_URL}/api/cases`).then((r) => r.json()).then(setCases), [])
 
   useEffect(() => {
@@ -67,6 +63,7 @@ export default function Desk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, cases.length, custom.utr])
 
+  // Refresh the live records each time an agent writes to a system, so "What changed" updates as it happens.
   const posts = run.steps.filter((s) => s.kind === 'call' && s.http?.method === 'POST' && s.status !== 'running').length
   useEffect(() => {
     if (posts && kase) loadSnapshot(kase)
@@ -77,11 +74,12 @@ export default function Desk() {
     const o = run.outcome
     if (!o) return
     if (o.after) setLive(o.after)
-    if (o.status !== 'AWAITING_APPROVAL') {
-      const label = o.deadline ? `₹0 penalty · ${o.headline.replace(/^(Refunded|Returned) with /, '').replace(' to spare', ' spare')}` : o.headline
-      setResolved((r) => ({ ...r, [selected]: label }))
-      loadCases()
-    }
+    setStatus((s) => ({
+      ...s,
+      [selected]: o.status === 'AWAITING_APPROVAL' ? { kind: 'awaiting' }
+        : { kind: 'resolved', label: o.deadline ? `₹0 penalty · ${o.headline.replace(/^(Refunded|Returned) with /, '').replace(' to spare', ' spare')}` : o.headline },
+    }))
+    if (o.status !== 'AWAITING_APPROVAL') loadCases()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run.outcome])
 
@@ -89,6 +87,7 @@ export default function Desk() {
     if (running) return
     setSelected(id)
     setLive(null)
+    setPinned(null)
     dispatch({ type: 'reset', t: 0 })
   }
 
@@ -104,30 +103,34 @@ export default function Desk() {
   }
 
   async function start() {
+    setPinned(null)
     dispatch({ type: 'reset', t: 0 })
+    setStatus((s) => ({ ...s, [selected]: { kind: 'running' } }))
     await consume('/api/runs', isCustom ? { ...custom, pace } : { case_id: selected, pace })
+    setStatus((s) => (s[selected]?.kind === 'running' ? (({ [selected]: _, ...rest }) => rest)(s) : s))
   }
 
   async function decide(approve: boolean) {
     if (!run.runId) return
     setDeciding(true)
+    setPinned('resolver')
     dispatch({ type: 'resume', t: 0 })
     await consume(`/api/runs/${run.runId}/decision`, { approve })
     setDeciding(false)
+    setPinned(null)
   }
 
   async function resetSandbox() {
     await fetch(`${API_URL}/sandbox/reset`, { method: 'POST' })
     dispatch({ type: 'reset', t: 0 })
-    setResolved({})
+    setStatus({})
     await loadCases()
     if (kase) loadSnapshot(kase)
   }
 
-  const stepsOf = (n: string) => run.steps.filter((s) => s.node === n)
-  const partyLabels = Object.fromEntries(
-    (Object.keys(PARTY_STYLE) as PartyId[]).map((p) => [p, p === 'bene' ? (live?.bene.bank ?? 'Other bank') : PARTY_STYLE[p].name]),
-  ) as Record<PartyId, string>
+  const active = (['investigator', 'policy', 'resolver'] as NodeId[]).find((n) => run.nodes[n].status === 'running') ?? 'orchestrator'
+  const showReport = !pinned && run.outcome && run.phase !== 'running'
+  const focus: NodeId = pinned ?? active
 
   return (
     <div className="flex h-screen flex-col bg-white">
@@ -143,38 +146,50 @@ export default function Desk() {
         <span className="hidden text-[12px] text-slate-400 md:inline">Sahyadri Bank · sandbox</span>
         {meta && (
           <span title={meta.brain_label} className={`ml-1 hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium lg:flex ${
-            llm ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${llm ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            {llm ? meta.brain_label : 'Agent brain: rules engine (LLM keys not set)'}
+            llm ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-800'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${llm ? 'animate-pulse bg-emerald-500' : 'bg-amber-500'}`} />
+            {llm ? `AI agents live · ${meta.brain_label}` : 'Rules engine (no AI login on this server)'}
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <div className="flex rounded-lg bg-slate-100 p-0.5 text-[12px] font-medium">
-            {PACES.map((p) => (
-              <button key={p.id} onClick={() => setPace(p.id)} disabled={running}
-                className={`rounded-md px-2.5 py-1 ${pace === p.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>{p.label}</button>
-            ))}
-          </div>
-          <button onClick={resetSandbox} disabled={running} title="Restore every sandbox balance and record"
-            className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40">
-            <Icon name="reset" className="h-3.5 w-3.5" />
-          </button>
+          <details className="relative">
+            <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-[12.5px] font-medium text-slate-600 hover:bg-slate-50">
+              Demo <span className="text-slate-400">▾</span>
+            </summary>
+            <div className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+              {!llm && (
+                <div className="mb-2">
+                  <div className="px-1 pb-1 text-[10.5px] font-semibold uppercase tracking-widest text-slate-400">Playback pace</div>
+                  <div className="flex rounded-lg bg-slate-100 p-0.5 text-[12px] font-medium">
+                    {PACES.map((p) => (
+                      <button key={p.id} onClick={() => setPace(p.id)} disabled={running}
+                        className={`flex-1 rounded-md px-2 py-1 ${pace === p.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>{p.label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button onClick={resetSandbox} disabled={running}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                <Icon name="reset" className="h-3.5 w-3.5" /> Reset sandbox records
+              </button>
+            </div>
+          </details>
           <button onClick={start} disabled={running || deciding || !kase || (isCustom && !custom.complaint.trim())}
-            className="flex h-9 items-center gap-2 rounded-lg bg-ink px-4 text-[13px] font-semibold text-white shadow hover:bg-slate-800 disabled:opacity-60">
-            {running ? <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> Resolving · {(run.elapsedMs / 1000).toFixed(1)}s</>
-              : <><Icon name="play" className="h-3.5 w-3.5" /> {run.phase === 'idle' ? 'Resolve with agents' : 'Run again'}</>}
+            className="flex h-9 items-center gap-2 rounded-lg bg-ink px-4 text-[13px] font-semibold text-white shadow transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60">
+            {running ? <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> Agents working · {(run.elapsedMs / 1000).toFixed(0)}s</>
+              : <><Icon name="play" className="h-3.5 w-3.5" /> {run.phase === 'idle' ? 'Resolve with AI agents' : 'Run again'}</>}
           </button>
         </div>
       </header>
       {apiError && <div className="bg-rose-50 px-4 py-2 text-[12px] text-rose-700">{apiError}</div>}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[264px_minmax(0,1fr)] xl:grid-cols-[264px_minmax(0,1fr)_340px]">
-        <CaseRail cases={cases} selected={selected} onPick={pick} disabled={running} resolved={resolved} />
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
+        <CaseRail cases={cases} selected={selected} onPick={pick} disabled={running} status={status} />
 
-        <main className="flex min-h-0 flex-col gap-3 p-4">
-          {isCustom && (
+        <main className="flex min-h-0 flex-col gap-3 bg-slate-50/40 p-4">
+          {isCustom ? (
             <section className="rounded-2xl border border-violet-200 bg-violet-50/40 p-3">
-              <div className="flex items-baseline justify-between">
+              <div className="flex items-baseline justify-between gap-3">
                 <h1 className="font-serif text-[26px] leading-tight tracking-tight">Write your own complaint</h1>
                 <span className="text-[11.5px] text-slate-500">The agents only get the UTR and your words. They work out the rest.</span>
               </div>
@@ -194,39 +209,55 @@ export default function Desk() {
                   ))}
                 </select>
                 <textarea value={custom.complaint} onChange={(e) => setCustom((c) => ({ ...c, complaint: e.target.value }))} disabled={running} rows={2}
-                  placeholder="e.g. “I paid my electrician but he says the money never came. Please reverse it.”"
+                  placeholder="e.g. “I paid my electrician but he says the money never came. Please reverse it.” (Hindi or Hinglish works too)"
                   className="resize-none rounded-lg border border-slate-200 bg-white p-2 text-[13px] md:col-span-2" />
               </div>
             </section>
-          )}
-          {kase && !isCustom && (
-            <section className="flex items-start gap-4">
-              <div className="min-w-0 flex-1">
-                <h1 className="font-serif text-[28px] leading-tight tracking-tight text-slate-900">{kase.title}</h1>
-                <p className="mt-0.5 line-clamp-2 text-[13px] text-slate-500">
-                  {kase.trigger === 'sweep'
-                    ? <>Flagged by the reconciliation sweep of <b className="font-medium text-slate-700">{kase.settlement_date}</b>. No customer has complained yet.</>
-                    : <><b className="font-medium text-slate-700">{kase.customer_name}:</b> <i>“{kase.complaint}”</i></>}
-                </p>
+          ) : kase && (
+            <section key={kase.id} className="step-in">
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className={`rounded px-1.5 py-0.5 font-bold uppercase tracking-wider ${kase.trigger === 'sweep' ? 'bg-violet-100 text-violet-700' : 'bg-slate-200 text-slate-600'}`}>
+                  {kase.trigger === 'sweep' ? `Recon sweep · ${kase.settlement_date}` : `Complaint · ${kase.customer_name}`}
+                </span>
+                <span className="rounded bg-white px-1.5 py-0.5 font-medium text-slate-600 ring-1 ring-slate-200">We are the {kase.role.toLowerCase()}</span>
+                <span className="rounded bg-white px-1.5 py-0.5 font-mono font-semibold text-slate-800 ring-1 ring-slate-200">{rs(kase.amount_paise)}</span>
+                <span className="font-mono text-slate-400">UTR {kase.utr}</span>
               </div>
-              <dl className="hidden shrink-0 grid-cols-3 gap-4 text-right md:grid">
-                <div><dt className="text-[10px] uppercase tracking-widest text-slate-400">Amount</dt><dd className="font-mono text-[15px] font-semibold">{rs(kase.amount_paise)}</dd></div>
-                <div><dt className="text-[10px] uppercase tracking-widest text-slate-400">Our role</dt><dd className="text-[13px] font-medium text-slate-700">{kase.role}</dd></div>
-                <div><dt className="text-[10px] uppercase tracking-widest text-slate-400">UTR</dt><dd className="font-mono text-[12px] text-slate-600">{kase.utr}</dd></div>
-              </dl>
+              <h1 className="mt-1.5 font-serif text-[25px] leading-snug tracking-tight text-slate-900">{kase.story ?? kase.title}</h1>
+              {kase.trigger === 'complaint' && <p className="mt-0.5 line-clamp-1 text-[12.5px] italic text-slate-500">“{kase.complaint}”</p>}
             </section>
           )}
 
-          <OrchestratorBar state={run.nodes.orchestrator} steps={stepsOf('orchestrator')} usage={run.usage.orchestrator} model={model} />
+          <Stepper run={run} focus={showReport || run.phase === 'idle' ? null : focus} onFocus={setPinned} />
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3">
-            {(['investigator', 'policy', 'resolver'] as const).map((n) => (
-              <AgentColumn key={n} id={n} state={run.nodes[n]} edge={run.edges[`orchestrator>${n}`] ?? 'idle'}
-                steps={stepsOf(n)} usage={run.usage[n]} model={model} waitingHuman={n === 'resolver' && run.phase === 'awaiting'} />
-            ))}
-          </div>
-
-          <PartyBus steps={run.steps} labels={partyLabels} />
+          {run.phase === 'idle' ? (
+            <section className="step-in grid flex-1 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white">
+              <div className="max-w-md p-6 text-center">
+                <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 text-white shadow-lg">
+                  <Icon name="orchestrator" className="h-6 w-6" />
+                </div>
+                <h2 className="mt-3 text-[17px] font-semibold text-slate-900">An orchestrator and 3 AI agents will work this case</h2>
+                <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
+                  They get only the UTR and the complaint. Every fact comes from a live call to core banking, NPCI or the other bank,
+                  and nothing moves until the execution engine re-checks it.
+                </p>
+                <button onClick={start} disabled={!kase || (isCustom && !custom.complaint.trim())}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-2.5 text-[13.5px] font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50">
+                  <Icon name="play" className="h-4 w-4" /> Resolve with AI agents
+                </button>
+                {model && <p className="mt-2 font-mono text-[11px] text-slate-400">model: {model} · about a minute</p>}
+              </div>
+            </section>
+          ) : showReport && run.outcome ? (
+            <CaseReport o={run.outcome} run={run} onReplay={setPinned} />
+          ) : (
+            <>
+              {pinned && run.outcome && (
+                <button onClick={() => setPinned(null)} className="-mb-1 self-start text-[12px] font-medium text-violet-700 hover:underline">← Back to the case report</button>
+              )}
+              <AgentFocus node={focus} run={run} model={model} />
+            </>
+          )}
           {run.phase === 'error' && <div className="rounded-xl bg-rose-50 p-3 text-[12px] text-rose-700">Run failed: {run.error}</div>}
         </main>
 

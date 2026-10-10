@@ -9,7 +9,7 @@ def build_cases() -> list[dict]:
     yesterday = (datetime.now(IST) - timedelta(days=1)).date().isoformat()
     return [
         {
-            "id": "deemed-outward", "tat_days": 1,
+            "id": "deemed-outward", "story": "Rahul's ₹5,000 left his account last night but never reached Amit's bank. Refund him by T+1 or the bank pays ₹100 a day.", "tat_days": 1,
             "title": "Deemed payment, no credit confirmation",
             "subtitle": "₹5,000 to Kaveri Bank timed out last night",
             "trigger": "sweep", "settlement_date": yesterday,
@@ -18,7 +18,7 @@ def build_cases() -> list[dict]:
             "complaint": "",
         },
         {
-            "id": "inward-suspense", "tat_days": 1,
+            "id": "inward-suspense", "story": "₹8,000 arrived for an account we closed and is stuck in our suspense. Send it back by T+1 or the bank pays ₹100 a day.", "tat_days": 1,
             "title": "Inward credit stuck in our suspense",
             "subtitle": "₹8,000 arrived for an account we closed",
             "trigger": "sweep", "settlement_date": yesterday,
@@ -27,7 +27,7 @@ def build_cases() -> list[dict]:
             "complaint": "",
         },
         {
-            "id": "merchant-deemed", "tat_days": 5,
+            "id": "merchant-deemed", "story": "Ananya paid ₹2,340 twice at a shop; the first payment never reached it. Refund the stuck one within T+5.", "tat_days": 5,
             "title": "Shop never got confirmation",
             "subtitle": "Customer paid ₹2,340 twice at the till",
             "trigger": "complaint",
@@ -36,7 +36,7 @@ def build_cases() -> list[dict]:
             "complaint": "Paid ₹2,340 at Annapurna Supermart. The machine said failed so I paid again. Now ₹4,680 is gone from my account.",
         },
         {
-            "id": "not-received", "tat_days": None,
+            "id": "not-received", "story": "Vikram says his landlord never got ₹12,000 rent. Find out who is right before it turns into a chargeback.", "tat_days": None,
             "title": "“Recipient says not received”",
             "subtitle": "₹12,000 rent, landlord disputes it",
             "trigger": "complaint",
@@ -45,7 +45,7 @@ def build_cases() -> list[dict]:
             "complaint": "Paid ₹12,000 rent to my landlord 3 days ago. He says he hasn't received it. Please refund or check.",
         },
         {
-            "id": "collect-fraud", "tat_days": None,
+            "id": "collect-fraud", "story": "Sunita approved a ₹49,999 'KYC update' request from a scammer 5 hours ago. Freeze the money before it moves on.", "tat_days": None,
             "title": "Collect-request scam",
             "subtitle": "₹49,999 approved to a fake ‘KYC’ desk",
             "trigger": "complaint",
@@ -54,7 +54,7 @@ def build_cases() -> list[dict]:
             "complaint": "A man said he was from the bank's KYC team and my account would be blocked. I approved a request and entered my PIN. ₹49,999 is gone.",
         },
         {
-            "id": "bene-outage", "tat_days": 1,
+            "id": "bene-outage", "story": "Neha's ₹3,500 to Priya is stuck and the other bank's systems are down. Refund her by T+1 anyway.", "tat_days": 1,
             "title": "Other bank's API is down",
             "subtitle": "₹3,500 stuck, Kaveri Bank not answering",
             "trigger": "complaint",

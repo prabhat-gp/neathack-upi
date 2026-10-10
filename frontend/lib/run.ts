@@ -22,6 +22,7 @@ export const FLOW_EDGES = [
 
 export interface Case {
   id: string
+  story?: string
   title: string
   subtitle: string
   trigger: 'sweep' | 'complaint'
@@ -40,7 +41,7 @@ export interface Case {
 }
 
 export interface Meta {
-  brain: 'bedrock' | 'anthropic' | 'rules'
+  brain: 'codex' | 'bedrock' | 'anthropic' | 'rules'
   brain_label: string
   model: string | null
   parties: Record<PartyId, { label: string; role: string }>
@@ -120,6 +121,7 @@ export interface Outcome {
 export interface RunState {
   phase: 'idle' | 'running' | 'awaiting' | 'done' | 'error'
   runId?: string
+  traceUrl?: string | null
   brain?: string
   brainLabel?: string
   nodes: Record<NodeId, NodeState>
@@ -152,9 +154,9 @@ export function reduceRun(state: RunState, ev: RunEvent): RunState {
     case 'reset':
       return initialRunState()
     case 'resume':
-      return { ...state, phase: 'running' }
+      return { ...state, phase: 'running', outcome: undefined }
     case 'run_started':
-      return { ...initialRunState(), phase: 'running', runId: ev.run_id, brain: ev.brain, brainLabel: ev.brain_label, before: ev.before }
+      return { ...initialRunState(), phase: 'running', runId: ev.run_id, traceUrl: ev.trace_url, brain: ev.brain, brainLabel: ev.brain_label, before: ev.before }
     case 'node': {
       const prev = state.nodes[ev.node as NodeId]
       return {

@@ -31,7 +31,7 @@ function Reasoning({ step, llm }: { step: Step; llm: boolean }) {
   return (
     <div className="step-in rounded-xl rounded-tl-sm bg-violet-50 px-3 py-2">
       <div className="mb-0.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-violet-600">
-        <Icon name="think" className="h-3 w-3" /> Model reasoning
+        <Icon name="think" className="h-3 w-3" /> Thinking
       </div>
       <p className="whitespace-pre-line text-[12px] leading-relaxed text-slate-800">
         {step.streamed ? step.detail : <Typewriter text={step.detail ?? ''} since={step.arrivedAt} />}
@@ -132,7 +132,7 @@ function TurnLine({ step }: { step: Step }) {
       <span className="h-px flex-1 bg-violet-100" />
       <span className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[10px] ${running ? 'shimmer text-violet-700' : 'bg-violet-50 text-violet-600'}`}>
         {running && <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />}
-        {step.title} · {running ? 'model thinking…' : step.result}
+        {step.title.replace('Turn', 'AI turn')} · {running ? 'thinking…' : (step.result ?? '').split(' · ')[0]}
       </span>
       <span className="h-px flex-1 bg-violet-100" />
     </div>
@@ -148,11 +148,21 @@ function Handoff({ step }: { step: Step }) {
   )
 }
 
+// Decisions worth showing in words. Tools that call a bank system are already shown as a call line, so they are skipped.
+export const TOOL_LABEL: Record<string, string> = {
+  dispatch_investigator: 'Handed the case to the Investigator', dispatch_policy: 'Handed the evidence to Policy',
+  dispatch_resolver: 'Handed the ruling to the Resolver', close_case: 'Closed the case', reconciliation_sweep: 'Ran the reconciliation sweep',
+  submit_findings: 'Submitted its findings', submit_ruling: 'Submitted its ruling', submit_resolution_plan: 'Submitted the action plan',
+  lookup_rbi_rule: 'Looked up the RBI rule', compute_tat_position: 'Computed the deadline', compute_risk_score: 'Scored fraud risk',
+}
+
 function ToolChoice({ step }: { step: Step }) {
+  const label = TOOL_LABEL[step.title.replace('Chose ', '')]
+  if (!label) return null
   return (
-    <div className="step-in flex items-center gap-1.5 px-2 text-[11px] text-violet-700">
+    <div className="step-in flex items-center gap-1.5 px-2 text-[11.5px] font-medium text-violet-700">
       <Icon name="decision" className="h-3 w-3 shrink-0" />
-      <span>Model chose <code className="font-mono font-semibold">{step.title.replace('Chose ', '')}</code></span>
+      <span>{label}</span>
     </div>
   )
 }

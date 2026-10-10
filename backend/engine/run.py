@@ -18,6 +18,7 @@ class Run:
         self.pending_plan: dict | None = None
         self.usage: dict[str, dict] = {}
         self.calls: list[str] = []
+        self.trace_url: str | None = None
         self.cost_usd = 0.0  # stays 0 on a ChatGPT plan (usage is covered by the subscription, not billed per token)
         self._seq = 0
 

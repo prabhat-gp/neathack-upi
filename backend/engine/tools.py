@@ -202,7 +202,9 @@ INVESTIGATOR_TOOLS = [
              "disputed_utr": UTR,
              "duplicate_utr": {"type": "string", "description": "For DUPLICATE_DEBIT: the UTR that is NOT the payment of record"},
              "summary": {"type": "string", "description": "2-3 sentences: what actually happened, citing evidence"},
-             "evidence": {"type": "array", "items": _obj({"source": {"type": "string"}, "fact": {"type": "string"}}, ["source", "fact"])},
+             "evidence": {"type": "array", "items": _obj({"source": {"type": "string", "description": "The system the fact came from, in plain words: "
+                                                                             "'Core banking', 'NPCI', the other bank's name, 'Acquirer' or 'NCRP'"},
+                                                          "fact": {"type": "string"}}, ["source", "fact"])},
              "claim_matches_evidence": {"type": "boolean"},
          }, ["case_type", "disputed_utr", "summary", "evidence", "claim_matches_evidence"])),
 ]

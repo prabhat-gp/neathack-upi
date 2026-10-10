@@ -40,6 +40,19 @@ def _j(v) -> str:
     return v if isinstance(v, str) else json.dumps(v, default=str)[:20000]
 
 
+def trace_url() -> str | None:
+    """Link to the neatlogs trace of the span currently running (the case's WORKFLOW span)."""
+    if not ENABLED or not (config.NEATLOGS_PROJECT_ID and config.NEATLOGS_ORG_ID):
+        return None
+    from opentelemetry import context
+
+    span = context.get_value("neatlogs.parent_span")
+    if span is None or not span.get_span_context().is_valid:
+        return None
+    return (f"https://app.neatlogs.com/traces/{span.get_span_context().trace_id:032x}"
+            f"?orgId={config.NEATLOGS_ORG_ID}&projectId={config.NEATLOGS_PROJECT_ID}")
+
+
 def current_context():
     if not ENABLED:
         return None
