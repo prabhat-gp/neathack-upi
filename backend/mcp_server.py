@@ -11,7 +11,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 import config
 import ledger
-from engine.cases import build_cases
+from desk import store
 
 MARKET = {
     "upi_transactions_per_month": {"value": 24_070_000_000, "period": "Sep 2026",
@@ -53,9 +53,10 @@ def market_facts() -> dict:
 
 @server.tool()
 def open_exceptions() -> list[dict]:
-    """UPI exceptions currently on the desk with their RBI turnaround (T+1 / T+5) and amount in INR."""
-    return [{"id": c["id"], "title": c["title"], "trigger": c["trigger"], "tat_days": c.get("tat_days"),
-             "amount_inr": c["amount_paise"] / 100, "utr": c["utr"]} for c in build_cases()]
+    """Cases on the desk right now: channel, status, amount in INR, RBI turnaround and deadline."""
+    return [{"id": c["id"], "channel": c["channel"], "status": c["status"], "utr": c["utr"], "tat_days": c.get("tat_days"),
+             "deadline_at": c.get("deadline_at"), "amount_inr": (c.get("amount_paise") or 0) / 100, "headline": c.get("headline")}
+            for c in store.list_cases()]
 
 
 def http_app():

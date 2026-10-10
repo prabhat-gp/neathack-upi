@@ -48,6 +48,10 @@ MAX_CONCURRENT_LLM_RUNS = int(os.environ.get("MAX_CONCURRENT_LLM_RUNS", "2"))
 # DisputePro MCP (/mcp) bearer token: cfo.ai and Claude Code send it to read desk numbers
 MCP_API_TOKEN = os.environ.get("MCP_API_TOKEN", "")
 
+# Autopilot: how often a simulated customer writes in, and the hard cap per session (each case costs model usage)
+AUTOPILOT_INTERVAL_SEC = int(os.environ.get("AUTOPILOT_INTERVAL_SEC", "120"))
+AUTOPILOT_MAX_COMPLAINTS = int(os.environ.get("AUTOPILOT_MAX_COMPLAINTS", "10"))
+
 AUTO_APPROVE_LIMIT_PAISE = int(os.environ.get("AUTO_APPROVE_LIMIT_PAISE", str(10_000_00)))
 NEATLOGS_API_KEY = os.environ.get("NEATLOGS_API_KEY", "")
 # Not secrets: used to link each run to its trace in the neatlogs dashboard

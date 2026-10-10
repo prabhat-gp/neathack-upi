@@ -8,6 +8,8 @@ Seed timestamps are relative to "now" at reset, so every scene opens with its RB
 import os
 import sqlite3
 import threading
+
+from .population import populate
 from datetime import datetime, timedelta, timezone
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -20,7 +22,7 @@ _conn: sqlite3.Connection | None = None
 SCHEMA = """
 CREATE TABLE cbs_customers (
   id TEXT PRIMARY KEY, name TEXT, account_no TEXT UNIQUE, vpa TEXT UNIQUE, balance_paise INTEGER, status TEXT,
-  status_since TEXT, account_opened TEXT, device_bound_at TEXT, disputes_90d INTEGER
+  status_since TEXT, account_opened TEXT, device_bound_at TEXT, disputes_90d INTEGER, phone TEXT
 );
 CREATE TABLE cbs_transactions (
   utr TEXT PRIMARY KEY, account_no TEXT, direction TEXT, amount_paise INTEGER, counterparty_vpa TEXT,
@@ -68,6 +70,15 @@ CREATE TABLE acq_refunds (id TEXT PRIMARY KEY, utr TEXT, amount_paise INTEGER, s
 CREATE TABLE ncrp_reports (ack_no TEXT PRIMARY KEY, vpa TEXT, utr TEXT, amount_paise INTEGER, reported_by TEXT, created_at TEXT);
 -- Live incidents on a counterparty: the next `remaining` calls for this key fail with `status`.
 CREATE TABLE sandbox_faults (party TEXT, key TEXT, remaining INTEGER, status INTEGER, message TEXT, PRIMARY KEY (party, key));
+
+-- DisputePro's own state: the case queue fed by channels, and the conversation with each customer.
+CREATE TABLE desk_cases (
+  id TEXT PRIMARY KEY, channel TEXT, customer_id TEXT, utr TEXT, message TEXT, status TEXT, created_at TEXT, updated_at TEXT,
+  run_id TEXT, headline TEXT, outcome TEXT
+);
+CREATE TABLE desk_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, customer_id TEXT, case_id TEXT, sender TEXT, channel TEXT, text TEXT, created_at TEXT
+);
 """
 
 
@@ -127,17 +138,17 @@ def _at(base: datetime, days: float, hh: int, mm: int, ss: int = 0) -> datetime:
 def _seed(c: sqlite3.Connection, n: datetime) -> None:
     customers = [
         # id, name, account, vpa, balance, status, opened_days_ago, device_days_ago, disputes_90d
-        ("rahul", "Rahul Mehta", "SAHY00012345", "rahul.mehta@sahyadri", 4823000, "ACTIVE", 1600, 900, 0),
-        ("imran", "Imran Shaikh", "SAHY00067890", "imran.s@sahyadri", 0, "CLOSED", 1200, 600, 0),
-        ("ananya", "Ananya Iyer", "SAHY00023456", "ananya.iyer@sahyadri", 1265000, "ACTIVE", 2200, 400, 0),
-        ("vikram", "Vikram Singh", "SAHY00056789", "vikram.singh@sahyadri", 6710000, "ACTIVE", 1300, 1100, 0),
-        ("sunita", "Sunita Rao", "SAHY00045678", "sunita.rao@sahyadri", 15240000, "ACTIVE", 5100, 700, 0),
-        ("neha", "Neha Kapoor", "SAHY00078901", "neha.kapoor@sahyadri", 2210000, "ACTIVE", 900, 300, 0),
+        ("rahul", "Rahul Mehta", "SAHY00012345", "rahul.mehta@sahyadri", 4823000, "ACTIVE", 1600, 900, 0, "+91 98201 44518"),
+        ("imran", "Imran Shaikh", "SAHY00067890", "imran.s@sahyadri", 0, "CLOSED", 1200, 600, 0, "+91 99670 21983"),
+        ("ananya", "Ananya Iyer", "SAHY00023456", "ananya.iyer@sahyadri", 1265000, "ACTIVE", 2200, 400, 0, "+91 98450 77310"),
+        ("vikram", "Vikram Singh", "SAHY00056789", "vikram.singh@sahyadri", 6710000, "ACTIVE", 1300, 1100, 0, "+91 98111 20402"),
+        ("sunita", "Sunita Rao", "SAHY00045678", "sunita.rao@sahyadri", 15240000, "ACTIVE", 5100, 700, 0, "+91 94480 15872"),
+        ("neha", "Neha Kapoor", "SAHY00078901", "neha.kapoor@sahyadri", 2210000, "ACTIVE", 900, 300, 0, "+91 98330 25530"),
     ]
-    for cid, name, acct, vpa, bal, status, opened, device, disputes in customers:
+    for cid, name, acct, vpa, bal, status, opened, device, disputes, phone in customers:
         since = iso(n - timedelta(days=12)) if status == "CLOSED" else iso(n - timedelta(days=opened))
-        c.execute("INSERT INTO cbs_customers VALUES (?,?,?,?,?,?,?,?,?,?)",
-                  (cid, name, acct, vpa, bal, status, since, iso(n - timedelta(days=opened)), iso(n - timedelta(days=device)), disputes))
+        c.execute("INSERT INTO cbs_customers VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                  (cid, name, acct, vpa, bal, status, since, iso(n - timedelta(days=opened)), iso(n - timedelta(days=device)), disputes, phone))
 
     bene = [
         ("amit.k@kaveri", "Kaveri Bank", "Amit Kulkarni", "SAVINGS", 2300, "FULL_KYC", 1834000, 3),
@@ -220,6 +231,8 @@ def _seed(c: sqlite3.Connection, n: datetime) -> None:
     c.execute("INSERT INTO sandbox_faults VALUES (?,?,?,?,?)",
               ("bene", "610045225530", 3, 504, "Kaveri Bank CBS gateway timeout (upstream did not respond in 15s)"))
 
+    populate(c, n, iso, OUR_BANK)
+    customers = [(r[0], None, r[1]) for r in c.execute("SELECT id, account_no FROM cbs_customers").fetchall()]
     for cid, _, a, *_ in customers:
         spent = c.execute("SELECT COALESCE(SUM(amount_paise),0) FROM cbs_transactions WHERE account_no=?", (a,)).fetchone()[0]
         c.execute("UPDATE cbs_customers SET balance_paise = MAX(0, balance_paise - ?) WHERE id=?", (spent, cid))

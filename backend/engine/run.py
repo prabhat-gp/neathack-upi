@@ -11,7 +11,9 @@ class Run:
         self.case = case
         self.brain = brain
         self.pace = pace
-        self.queue: asyncio.Queue = asyncio.Queue()
+        self.history: list[dict] = []  # every event, so a screen that opens late can replay the run
+        self.subscribers: set[asyncio.Queue] = set()
+        self.closed = False  # no more events until a human decision resumes it
         self.t0 = time.monotonic()
         self.status = "RUNNING"
         self.facts: dict = {}
@@ -26,7 +28,10 @@ class Run:
         return int((time.monotonic() - self.t0) * 1000)
 
     async def emit(self, type_: str, pause: float = 0.0, **payload):
-        await self.queue.put({"type": type_, "t": self.ms(), **payload})
+        ev = {"type": type_, "t": self.ms(), **payload}
+        self.history.append(ev)
+        for q in list(self.subscribers):
+            q.put_nowait(ev)
         if pause and self.pace:
             await asyncio.sleep(self.pace * pause)
 
@@ -45,6 +50,21 @@ class Run:
 
     async def update(self, sid: str, status: str, pause: float = 0.0, **extra):
         await self.emit("step_update", pause=pause, id=sid, status=status, **extra)
+
+    def close(self):
+        """Tell live viewers the run is idle (finished, failed or waiting for a human)."""
+        self.closed = True
+        for q in list(self.subscribers):
+            q.put_nowait(None)
+
+    def subscribe(self) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue()
+        for ev in self.history:
+            q.put_nowait(ev)
+        if self.closed:
+            q.put_nowait(None)
+        self.subscribers.add(q)
+        return q
 
     async def add_usage(self, node: str, input_tokens: int, output_tokens: int):
         u = self.usage.setdefault(node, {"input_tokens": 0, "output_tokens": 0, "llm_calls": 0})

@@ -67,7 +67,8 @@ async def get_statement_window(run, node, a):
                    summarize=lambda d: (f"{len(d['debits'])} debit(s)" + (f" within ±{mins} min of {a['around_utr']}" if params else " on statement"),
                                         "warn" if params and len(d["debits"]) > 1 else "ok"))
     _ev(run)["statement"] = d
-    return {"debits": [{k: t[k] for k in ("utr", "amount_paise", "counterparty_vpa", "initiated_at", "status")} for t in d["debits"]]}
+    return {"debits": [{k: t[k] for k in ("utr", "amount_paise", "counterparty_vpa", "counterparty_name", "narration", "initiated_at", "status")}
+                       for t in d["debits"]]}
 
 
 async def npci_check_status(run, node, a):

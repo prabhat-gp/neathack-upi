@@ -10,6 +10,8 @@ import tracing
 from datetime import datetime
 
 from . import agents, executor, rules
+from .caseinfo import case_fields
+from .intake import intake
 from .llm import run_agent
 from .parties import _client as http
 from .run import Run
@@ -105,13 +107,32 @@ async def snapshot(run: Run) -> dict | None:
 @tracing.span("WORKFLOW", "resolve_upi_dispute")
 async def orchestrate(run: Run):
     c = run.case
-    run.facts["before"] = await snapshot(run)
     run.trace_url = tracing.trace_url()
     await run.emit("run_started", run_id=run.id, case=c, brain=run.brain, brain_label=config.brain_label(), model=config.model_name(),
-                   trace_url=run.trace_url,
-                   before=run.facts["before"])
+                   trace_url=run.trace_url, before=None)
     sweep = c["trigger"] == "sweep"
-    await run.node("complaint", "done", activity=(f"Recon sweep · {c['settlement_date']}" if sweep else f"Complaint · {c['customer_name']}"), pause=0.3)
+    await run.node("complaint", "done", activity=(f"Recon sweep · {c['settlement_date']}" if sweep else f"{c['channel']} · {c['customer_name']}"), pause=0.3)
+
+    # Intake: a free-text complaint has no UTR yet. Find the payment the customer means, or ask them.
+    if not c.get("utr"):
+        with tracing.child("intake", "AGENT", inp=c["complaint"]) as sp:
+            found = await intake(run)
+            tracing.finish(sp, found)
+        if not found.get("utr"):
+            run.status = "NEEDS_INFO"
+            outcome = {"status": "NEEDS_INFO", "headline": "Asked the customer for one detail", "summary": found["summary"],
+                       "customer_message": found.get("question_for_customer") or "Which payment is this about? Please share the amount and the payee.",
+                       "actions": [], "rejected": [], "usage": run.usage, "deadline": None, "after": None}
+            run.facts["outcome"] = outcome
+            await run.emit("run_finished", outcome=outcome)
+            return
+        c.update(case_fields(found["utr"]))
+        c["intake_summary"] = found["summary"]
+        await run.emit("case_updated", case=c)
+    else:
+        await run.node("intake", "skipped", activity="Found by the reconciliation sweep" if sweep else "The UTR came with the complaint", pause=0.1)
+    run.facts["before"] = await snapshot(run)
+    await run.emit("before", before=run.facts["before"])
     await run.edge("complaint>orchestrator", "active", pause=0.6)
     await run.edge("complaint>orchestrator", "taken")
     await run.node(O, "running", activity="Running reconciliation sweep" if sweep else "Reading complaint", pause=0.3)
