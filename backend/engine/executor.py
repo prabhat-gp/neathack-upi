@@ -62,9 +62,14 @@ async def validate(run: Run, plan: dict) -> dict:
             target = f.get("duplicate_utr") or a["utr"]
             acq = await call(run, N, "acquirer", "GET", "/orders", params={"utr": target}, title="Confirm UTR is not the payment of record",
                              summarize=lambda d: ("not the payment of record" if not d.get("utr_is_payment_of_record") else "is the payment of record", "ok"))
-            ok = ct == "DUPLICATE_DEBIT" and acq.get("is_merchant_payment") and not acq.get("utr_is_payment_of_record")
+            tst = await call(run, N, "npci", "GET", f"/transactions/{target}/status", title="Confirm the duplicate reached the merchant",
+                             summarize=lambda d: (f"credit {d['credit_leg']}{' with TCC' if d['tcc'] else ', no TCC'}", "ok" if d["tcc"] else "bad"))
+            credited = tst.get("credit_leg") == "SUCCESS" and bool(tst.get("tcc"))
+            ok = ct == "DUPLICATE_DEBIT" and acq.get("is_merchant_payment") and not acq.get("utr_is_payment_of_record") and credited
             a["utr"] = target
-            note = f"refund {rs(a['amount_paise'])} on {target}" if ok else "target is the genuine payment: blocked"
+            note = (f"refund {rs(a['amount_paise'])} on {target}" if ok else
+                    "merchant never received this debit (no TCC): reverse it, a duplicate refund cannot recover it" if not credited else
+                    "target is the genuine payment: blocked")
         elif typ in FRAUD_ACTIONS:
             ok = ct == "AUTHORISED_FRAUD"
             a["utr"] = utr

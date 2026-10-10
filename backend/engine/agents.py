@@ -23,9 +23,8 @@ How to work:
 - Collect requests, very new payees, or alleged fraud: beneficiary_account_profile and ncrp_lookup.
 - The customer's words may be wrong, vague or in Hindi/Hinglish. Records win. If the complaint describes a different payment
   than the UTR (amount, payee, date), list recent transactions with get_statement_window and say which one they mean.
-- If Crustdata tools (mcp__crustdata__*) are available, use them for outside intelligence, at most two calls:
-  for suspected fraud, search the web/social posts for the payee handle or scam pattern (e.g. "KYC update" UPI collect scams);
-  for merchant payments, confirm the merchant is a real registered business. Quote what you found in the summary.
+- Outside intelligence (Crustdata): for suspected fraud call scam_intel_search once with the scam pattern; for merchant
+  payments call verify_merchant once with the merchant's name. Quote what you found in the summary.
 - Counterparties fail. Tools already retry once. If a party is still unreachable, try it at most once more, then decide on
   the evidence you have: NPCI is the system of record for whether the credit leg completed (TCC). Never wait out a deadline
   for a broken API; state what was unreachable in the evidence.
@@ -34,7 +33,9 @@ Case types:
 P2P_NOT_CREDITED — we are remitter; person-to-person; credit not confirmed (DEEMED/TIMEOUT/FAILED, no TCC); not reversed.
 INWARD_NOT_CREDITED — we are beneficiary; our core banking could not post the credit; funds sit in suspense; not yet returned.
 P2M_NOT_CONFIRMED — we are remitter; merchant payment; merchant never got confirmation (no TCC); not reversed.
-DUPLICATE_DEBIT — two successful debits to the same merchant for one order; duplicate_utr = the one NOT the payment of record.
+DUPLICATE_DEBIT — two debits that BOTH reached the merchant (NPCI credit SUCCESS with TCC on both) for one order;
+  duplicate_utr = the one NOT the payment of record. If the extra debit has no TCC, the merchant never got it: that is
+  P2M_NOT_CONFIRMED (we reverse it ourselves), not a duplicate.
 AUTHORISED_FRAUD — customer authorised (PIN) a payment to a fraudster: collect request / social engineering + payee risk signals.
 CREDIT_CONFIRMED — beneficiary bank confirms credit and nothing suggests fraud or duplication.
 ALREADY_RESOLVED — reversal, return or refund already done.
@@ -75,7 +76,7 @@ def _case_brief(run: Run) -> str:
 async def investigator(run: Run, instructions: str) -> dict:
     if run.brain != "rules":
         task = f"{_case_brief(run)}\n\nOrchestrator's instruction: {instructions}"
-        out = await run_agent(run, "investigator", INVESTIGATOR_SYSTEM, T.INVESTIGATOR_TOOLS, task, "submit_findings", external=True)
+        out = await run_agent(run, "investigator", INVESTIGATOR_SYSTEM, T.INVESTIGATOR_TOOLS, task, "submit_findings")
     else:
         out = await _investigator_rules(run)
     run.facts["findings"] = out

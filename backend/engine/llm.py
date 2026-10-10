@@ -55,12 +55,11 @@ async def _streamed_turn(run: Run, node: str, system: str, tools: list[Tool], me
 
 
 async def run_agent(run: Run, node: str, system: str, tools: list[Tool], task: str, submit: str,
-                    validate=None, external: bool = False) -> dict:
-    """Loop until the agent calls its submit tool. `validate(input) -> str | None` can bounce a bad submission.
-    `external` also gives the agent the hosted Crustdata MCP server (Codex brain only)."""
+                    validate=None) -> dict:
+    """Loop until the agent calls its submit tool. `validate(input) -> str | None` can bounce a bad submission."""
     if config.brain() == "codex":
         from .agent_codex import run_agent_codex
-        return await run_agent_codex(run, node, system, tools, task, submit, validate, external)
+        return await run_agent_codex(run, node, system, tools, task, submit, validate)
     by_name = {t.name: t for t in tools}
     messages: list[dict] = [{"role": "user", "content": task}]
     for turn in range(1, config.LLM_MAX_TURNS + 1):
