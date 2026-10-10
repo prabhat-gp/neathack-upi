@@ -72,3 +72,11 @@
 @media (prefers-reduced-motion: reduce) {
   .step-in, .glow-violet, .glow-amber, .beam::after, .beam-x::after, .shimmer, .pop, .animate-ping, .animate-pulse, .animate-spin { animation: none !important; }
 }
+
+/* Home pipeline: cases flowing between stages, agents pulsing in turn */
+.hood-dot { animation: hood-dot 1.8s ease-in-out infinite; }
+@keyframes hood-dot { from { left: -12px; } to { left: 100%; } }
+@media (max-width: 1023px) { @keyframes hood-dot { from { top: -12px; } to { top: 100%; } } }
+.hood-pulse { animation: hood-pulse 1.8s ease-in-out infinite; }
+@keyframes hood-pulse { 0%, 100% { opacity: 0.15; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.4); } }
+@media (prefers-reduced-motion: reduce) { .hood-dot, .hood-pulse { animation: none !important; } }

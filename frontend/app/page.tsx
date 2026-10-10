@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import UnderTheHood from '@/components/home/UnderTheHood'
 import { Icon } from '@/components/meta'
 
 const SOURCES = [
@@ -36,7 +37,7 @@ const AGENTS = [
   { icon: 'resolver', name: 'Resolver', grad: 'from-emerald-500 to-teal-600', line: 'Refunds, returns, raises chargebacks or freezes fraud, through a guardrailed engine.' },
 ]
 
-const HANDLES = ['Deemed payments with no credit confirmation', 'Inward credits stuck in suspense', 'Merchant never got confirmation', '“Recipient says not received”', 'Collect-request fraud']
+const HANDLES = ['Deemed payments with no credit confirmation', 'Inward credits stuck in suspense', 'Merchant never got confirmation', '“Recipient says not received”', 'Collect-request fraud', 'The other bank’s systems going down']
 
 export default function Home() {
   return (
@@ -52,6 +53,7 @@ export default function Home() {
           <nav className="hidden gap-6 text-[13.5px] text-slate-500 md:flex">
             <a href="#today" className="hover:text-slate-900">The problem</a>
             <a href="#how" className="hover:text-slate-900">How it works</a>
+            <a href="#built" className="hover:text-slate-900">Under the hood</a>
           </nav>
           <Link href="/console" className="ml-auto flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-white hover:bg-slate-800">
             Open the desk <Icon name="arrow" className="h-3.5 w-3.5" />
@@ -221,15 +223,18 @@ export default function Home() {
         </div>
       </section>
 
+      <UnderTheHood />
+
       {/* CTA */}
       <section className="mx-auto max-w-6xl px-6 py-24">
         <div className="relative overflow-hidden rounded-[2rem] bg-ink px-10 py-16 text-white">
           <div className="pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full bg-violet-600/30 blur-3xl" />
           <h2 className="relative max-w-2xl font-serif text-[48px] leading-[1.05] tracking-tight">
-            Watch five real exceptions get cleared, <em className="text-emerald-300">₹0 penalty each.</em>
+            Watch AI agents clear real exceptions, <em className="text-emerald-300">₹0 penalty each.</em>
           </h2>
           <p className="relative mt-4 max-w-xl text-[15px] text-slate-400">
-            A sandbox bank with live APIs for core banking, NPCI, the other bank, the acquirer and the cybercrime portal. Every call is shown.
+            Six cases on a sandbox bank with live APIs for core banking, NPCI, the other bank, the acquirer and the cybercrime portal,
+            or write your own complaint. Every AI turn and every call is shown.
           </p>
           <Link href="/console" className="relative mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[14px] font-semibold text-ink hover:bg-slate-100">
             <Icon name="play" className="h-4 w-4" /> Open the exceptions desk
