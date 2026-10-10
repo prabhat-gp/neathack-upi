@@ -1,0 +1,69 @@
+<pasted_content id="2d16">
+About Event
+Come with an idea. Explore the DevDay launches. Build something.
+
+Join Tushar and Kushal, Codex Ambassadors, for a hands-on community hackathon and meetup ahead of DevDay Exchange in Bengaluru.
+
+OpenAI’s DevDay announcements bring new ways to build with agents, create experiences inside ChatGPT, and automate work across connected tools. We’re getting together to explore those possibilities and turn your ideas into working projects.
+
+Bring a problem you want to solve, meet fellow builders, and spend the day experimenting, building, and sharing what you create.
+
+Date: Saturday, October 10, 2026
+Time: 10:00 AM–2:30 PM IST
+Venue: Polaris School of Technology, Bengaluru
+
+What we’ll explore
+Dots: AI that keeps working with you
+
+OpenAI introduced dots, always-on agents powered by GPT-6 Astra that can work across connected apps and their own cloud computer. Explore how an ongoing AI collaborator could help with research, coding, planning, or a workflow you care about. Explore dots.
+
+Plugins: build your own experience inside ChatGPT
+
+The new plugin extensions let developers create sidebar experiences, interactive panels, and custom file viewers. Think project dashboards, creative workspaces, learning tools, or a useful interface that people can work with alongside their conversation. Explore plugin extensions.
+
+Agents: move from answering questions to completing tasks
+
+The Agents API now supports computer use, alongside multi-agent capabilities and tools. Experiment with an agent that interacts with software, coordinates tasks, or helps complete a workflow from start to finish. Explore the announcement.
+
+Automations: make things happen when something changes
+
+New MCP events support lets plugins trigger automations from activity in connected apps. Imagine a new task kicking off research, a project update prompting a summary, or incoming information starting a useful workflow. Explore MCP events.
+
+Codex and GPT-6.1 Sol: bring your idea to life
+
+Explore GPT-6.1 Sol, the refreshed Codex CLI with voice and an agents view, and updated cloud workflows. Use them to help build, test, and refine your project during the hackathon. Explore the DevDay updates.
+
+Pick what interests you and build with the tools available to you. These are starting points—bring your own use case.
+
+How the day works
+Come prepared with an idea and your laptop. We’ll explore the DevDay announcements together, share practical Codex workflows, and get building.
+
+During the hackathon, turn your idea into a working prototype. At the end of the session, show what you built, explain the problem it solves, and demonstrate how you used OpenAI’s tools.
+
+The building, project demos, judging, and winner announcements all happen on October 10.
+
+Projects will be reviewed for usefulness, technical execution, originality, and how well the solution works.
+
+Prizes
+A prize pool of 10 tickets to the official DevDay Exchange in Bengaluru on October 16, 2026. 🥳
+
+Recipients will be announced at the meetup. Participating or demoing a project does not automatically guarantee a ticket.
+
+Beyond prizes, get feedback on your ideas and meet people you could build with next.
+
+Who should join?
+Developers, college students, founders, indie hackers, and anyone interested in building with AI.
+
+Before you join
+Bring your laptop, charger, and ideas. Set up Codex and check access to the OpenAI tools you want to explore beforehand, so you can spend more of the session building. Access to individual launches depends on your plan and their rollout.
+
+Register to join us on October 10.
+
+This is a community-led event, separate from the official DevDay Exchange. Meetup registration does not grant admission to the official event.
+
+Location
+Please register to see the exact location of this event.
+Bengaluru, Karnataka
+</pasted_content id="2d16">
+
+ thre is screenshot of the hackathon in coming week, im looking forward to particiapte, see ss in desktop, and pasted text is dexcription, can you helpme understnad and what to build and end to end hackton what to be done
