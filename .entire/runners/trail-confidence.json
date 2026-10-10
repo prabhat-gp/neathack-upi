@@ -1,0 +1,37 @@
+{
+  "id": "trail-confidence",
+  "display_name": "Confidence Eval",
+  "enabled": true,
+  "scope": "trail",
+  "runtime": {
+    "kind": "prompt_runner",
+    "agent": "claude",
+    "timeout_ms": 300000,
+    "sandbox": {
+      "base_template": "claude",
+      "repo_token": "read"
+    }
+  },
+  "automation": {
+    "kind": "trail_prompt"
+  },
+  "prompt": {
+    "template": "You are a confidence evaluator for DisputePro, a UPI dispute-resolution system (FastAPI/Python backend with an orchestrator, Investigator/Policy/Resolver agents, tools, party HTTP adapters and an execution engine; Next.js frontend; deploy configs). Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **confidence** from 0 to 100 (higher = more confident the changes are correct and well-tested).\n\nWeigh these dimensions:\n- Money and deadline correctness: penalty/compensation math (per-day amounts, T+1/T+5 windows), amount recomputation, rounding, date/timezone and business-day handling are covered by tests with boundary cases.\n- Agent/rules parity: LLM agent paths and their rules-based fallbacks keep identical tool signatures and output shapes; tool schemas, prompt changes and orchestrator ordering enforcement are exercised.\n- Execution safety: the executor re-verifies evidence and recomputes amounts before auto-executing, and the human-approval path is preserved and tested; failures, retries and idempotency of party adapter calls (CBS, NPCI, beneficiary bank, acquirer, NCRP) are handled.\n- Frontend/API contract: request/response types stay aligned between backend and frontend; console flows still render error and loading states.\n- Test evidence: new or changed behavior has corresponding tests; untested edits to executor, policy rules, or adapters should cap the score.\n\nScore bands:\n- 85-100: Small or well-isolated change, with tests covering money/deadline and decision-path behavior, and nothing unverified in execution paths.\n- 60-84: Logic looks correct but tests are partial, or the change touches agents/adapters without covering failure paths.\n- 30-59: Changes to penalty math, policy decisions, or executor behavior with little or no test coverage, or visible inconsistencies.\n- 0-29: Likely incorrect, or unverified changes that could auto-execute wrong payouts, skip verification, or break contracts.\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
+  },
+  "select": {
+    "trigger_types": [
+      "api",
+      "push"
+    ]
+  },
+  "output": {
+    "adapter": "last_json_line",
+    "result_type": "trail_monitor",
+    "trail_monitor": {
+      "key": "confidence",
+      "label": "Confidence",
+      "value_type": "percent",
+      "polarity": "higher_is_better"
+    }
+  }
+}

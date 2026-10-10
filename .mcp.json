@@ -3,7 +3,18 @@
     "disputepro": {
       "type": "http",
       "url": "http://localhost:8000/mcp/",
-      "headers": { "Authorization": "Bearer ${DISPUTEPRO_MCP_TOKEN}" }
+      "headers": {
+        "Authorization": "Bearer ${DISPUTEPRO_MCP_TOKEN}"
+      }
+    },
+    "entire-brain": {
+      "type": "stdio",
+      "command": "entire",
+      "args": [
+        "brain",
+        "mcp"
+      ],
+      "env": {}
     }
   }
 }

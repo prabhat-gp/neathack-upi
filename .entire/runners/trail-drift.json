@@ -1,0 +1,37 @@
+{
+  "id": "trail-drift",
+  "display_name": "Drift Eval",
+  "enabled": true,
+  "scope": "trail",
+  "runtime": {
+    "kind": "prompt_runner",
+    "agent": "claude",
+    "timeout_ms": 300000,
+    "sandbox": {
+      "base_template": "claude",
+      "repo_token": "read"
+    }
+  },
+  "automation": {
+    "kind": "trail_prompt"
+  },
+  "prompt": {
+    "template": "You are a drift evaluator for DisputePro (FastAPI/Python backend under backend/, Next.js frontend under frontend/, deploy configs under deploy/). Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **drift** from 0 to 100 (higher = more deviation from the project's established patterns).\n\nEstablished patterns to compare against:\n- Layering: the orchestrator routes by dispatching agents as tools while code enforces ordering; agents live in engine/agents.py with system prompts, tool loops and a rules-based brain exposing identical tools/output; tools are defined in engine/tools.py; external systems are reached only through HTTP adapters in engine/parties.py; money-moving actions go only through the execution engine (engine/executor.py) with re-verification and recomputation, then auto-execute or human approval.\n- Drift signals: business logic or direct party calls placed outside these layers, an LLM decision bypassing code-enforced checks, new agent tools without a rules-brain equivalent, ad hoc HTTP calls instead of adapters, new dependencies or config styles (env handling, .env.example) that differ from existing ones, frontend code that bypasses the existing API client/config (NEXT_PUBLIC_API_URL) or page structure.\n\nScore bands:\n- 0-20: Follows existing layering, naming and structure.\n- 21-50: Minor stylistic or structural departures, or a new helper in a sensible location.\n- 51-80: Logic in the wrong layer, a parallel pattern introduced beside an existing one, or inconsistent agent/rules behavior.\n- 81-100: Bypasses the executor/adapter/orchestrator architecture or introduces a conflicting architectural approach.\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
+  },
+  "select": {
+    "trigger_types": [
+      "api",
+      "push"
+    ]
+  },
+  "output": {
+    "adapter": "last_json_line",
+    "result_type": "trail_monitor",
+    "trail_monitor": {
+      "key": "drift",
+      "label": "Drift",
+      "value_type": "percent",
+      "polarity": "lower_is_better"
+    }
+  }
+}

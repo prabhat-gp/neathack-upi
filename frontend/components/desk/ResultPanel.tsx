@@ -95,7 +95,7 @@ export default function ResultPanel({ kase, run, live, deciding, onDecide }: {
           <div className="mt-3 flex gap-2">
             <button disabled={deciding} onClick={() => onDecide(true)}
               className="flex-1 rounded-xl bg-emerald-600 px-3 py-2.5 text-[13px] font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50">
-              Approve & execute
+              Approve and execute
             </button>
             <button disabled={deciding} onClick={() => onDecide(false)}
               className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] disabled:opacity-50">

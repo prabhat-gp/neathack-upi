@@ -1,0 +1,37 @@
+{
+  "id": "trail-security",
+  "display_name": "Security Review",
+  "enabled": true,
+  "scope": "trail",
+  "runtime": {
+    "kind": "prompt_runner",
+    "agent": "claude",
+    "timeout_ms": 300000,
+    "sandbox": {
+      "base_template": "claude",
+      "repo_token": "read"
+    }
+  },
+  "automation": {
+    "kind": "trail_prompt"
+  },
+  "prompt": {
+    "template": "You are a security risk evaluator for DisputePro, a banking UPI dispute-resolution system handling PII and money-moving automation (FastAPI/Python backend with LLM agents, party HTTP adapters and an execution engine; Next.js frontend; deploy configs). Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **security risk** from 0 to 100 (review adversarially; higher = more suspicious or insecure).\n\nCheck especially:\n- Prompt injection: complaint text, remarks, or party/adapter responses flowing into agent prompts or tool arguments and able to steer decisions, amounts or approvals.\n- Authorization of money movement: auto-execution or approval gates that can be bypassed, skipped re-verification, client-supplied amounts or case state trusted by the server, missing idempotency enabling replay or double payout.\n- Secrets and PII: hardcoded or logged API keys (Bedrock, Anthropic, neatLogs), account numbers/VPAs/customer data in logs, traces, error responses or frontend bundles; NEXT_PUBLIC_ variables exposing sensitive values.\n- API surface: unauthenticated or unvalidated FastAPI endpoints, permissive CORS, SSRF or unvalidated URLs in party adapters, TLS verification disabled, injection in queries or shell calls, unsafe deserialization.\n- Supply chain and deploy: new or unpinned dependencies, overly permissive deploy/infrastructure config, exposed ports or credentials in deploy files.\n- Frontend: unsafe HTML rendering (dangerouslySetInnerHTML) of agent or party text.\n\nScore bands:\n- 0-20: No security-relevant surface touched.\n- 21-45: Touches validated input handling or config with sound patterns and no new exposure.\n- 46-70: New endpoints, adapter calls, prompt inputs from untrusted text, or dependency additions with incomplete validation.\n- 71-100: Likely exploitable flaw, leaked secret or PII, bypassable approval/verification gate, or disabled transport/auth protections.\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
+  },
+  "select": {
+    "trigger_types": [
+      "api",
+      "push"
+    ]
+  },
+  "output": {
+    "adapter": "last_json_line",
+    "result_type": "trail_monitor",
+    "trail_monitor": {
+      "key": "security",
+      "label": "Security",
+      "value_type": "percent",
+      "polarity": "lower_is_better"
+    }
+  }
+}
