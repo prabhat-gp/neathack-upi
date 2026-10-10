@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+import agent_mcp
 import config
 import ledger
 import mcp_server
@@ -33,6 +34,7 @@ async def lifespan(_app):
 app = FastAPI(title="DisputePro", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(sandbox_router)
+app.include_router(agent_mcp.router)  # per-agent tool endpoints the Codex agents connect to
 app.mount("/mcp", _mcp_app)  # DisputePro MCP server (cfo.ai, Claude Code)
 
 PACES = {"slow": 1.0, "normal": 0.5, "fast": 0.18, "instant": 0.0}

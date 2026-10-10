@@ -1,4 +1,6 @@
+import json
 import os
+import shutil
 
 
 def _load_dotenv(path: str) -> None:
@@ -21,9 +23,19 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5-5")
-# Claude through the Claude Agent SDK, authenticated with a Claude Code token (`claude setup-token`).
-CLAUDE_CODE_OAUTH_TOKEN = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "")
-AGENT_MODEL = os.environ.get("AGENT_MODEL", "claude-sonnet-5-5")
+# OpenAI Codex CLI signed in with a ChatGPT plan (`codex login`): agents run on the plan's usage, no API key.
+CODEX_BIN = os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex"
+CODEX_HOME = os.environ.get("CODEX_HOME", os.path.expanduser("~/.codex"))
+CODEX_MODEL = os.environ.get("CODEX_MODEL", "gpt-5.5")
+CODEX_REASONING_EFFORT = os.environ.get("CODEX_REASONING_EFFORT", "low")
+
+
+def codex_signed_in() -> bool:
+    try:
+        return shutil.which(CODEX_BIN) is not None and json.load(open(os.path.join(CODEX_HOME, "auth.json"))).get("auth_mode") == "chatgpt"
+    except (OSError, ValueError):
+        return False
+
 # Crustdata MCP: the Investigator uses it live for web, company and people lookups.
 CRUSTDATA_API_KEY = os.environ.get("CRUSTDATA_API_KEY", "")
 CRUSTDATA_MCP_URL = os.environ.get("CRUSTDATA_MCP_URL", "https://install.crustdata.com/mcp")
@@ -40,8 +52,8 @@ NEATLOGS_API_KEY = os.environ.get("NEATLOGS_API_KEY", "")
 def brain() -> str:
     has_aws = bool(BEDROCK_MODEL_ID and (os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_PROFILE")))
     if LLM_PROVIDER == "auto":
-        if CLAUDE_CODE_OAUTH_TOKEN:
-            return "claude-code"
+        if codex_signed_in():
+            return "codex"
         if has_aws:
             return "bedrock"
         if ANTHROPIC_API_KEY:
@@ -52,7 +64,7 @@ def brain() -> str:
 
 def brain_label() -> str:
     return {
-        "claude-code": f"Claude · {AGENT_MODEL} (Claude Agent SDK)",
+        "codex": f"OpenAI {CODEX_MODEL} via Codex · ChatGPT plan",
         "bedrock": f"Claude on AWS Bedrock · {BEDROCK_MODEL_ID}",
         "anthropic": f"Claude · {ANTHROPIC_MODEL}",
         "rules": "Rules engine (no LLM credentials configured)",
@@ -60,4 +72,4 @@ def brain_label() -> str:
 
 
 def model_name() -> str | None:
-    return {"claude-code": AGENT_MODEL, "bedrock": BEDROCK_MODEL_ID, "anthropic": ANTHROPIC_MODEL}.get(brain())
+    return {"codex": CODEX_MODEL, "bedrock": BEDROCK_MODEL_ID, "anthropic": ANTHROPIC_MODEL}.get(brain())
