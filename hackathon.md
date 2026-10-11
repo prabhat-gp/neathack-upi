@@ -79,7 +79,8 @@ all events arrived together at 8.7s; uncompressed, one per second. Compression n
 
 Local: home `http://localhost:3001`, bank desk `http://localhost:3001/console`, backend `http://localhost:8000`.
 Path: open the desk → Run agents → watch T01–T03 → open T21 or T22 → approve or send to investigation.
-**Live:** https://34-239-21-63.sslip.io (bank desk at `/console`). Video: pending.
+**Live:** https://disputepro-si.vercel.app (bank desk at `/console`). The website is on Vercel (deploys `main`);
+the agents and data run on EC2 at https://34-239-21-63.sslip.io. Video: pending.
 
 ## Known limits
 

@@ -57,7 +57,8 @@ that actually ran.
 
 ## Open work
 
-1. Deployed: https://34-239-21-63.sslip.io (EC2 `i-091d89181bf90fc15`, key `~/Downloads/disputepro.pem`, user `ubuntu`).
+1. Deployed: website https://disputepro-si.vercel.app (Vercel project `disputepro`, root `frontend`, `NEXT_PUBLIC_API_URL`
+   = the EC2 URL); agents/API on https://34-239-21-63.sslip.io (EC2 `i-091d89181bf90fc15`, key `~/Downloads/disputepro.pem`, user `ubuntu`).
    Update: re-run `deploy/ec2-setup.sh` on the server (pulls `main`). Time one real gpt-6.1-sol batch before any speed claim.
 2. neatlogs before/after improvement evidence; failure-recovery write-up.
 3. Demo video, build-in-public posts, submission checklist in `hackathon.md`.
