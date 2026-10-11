@@ -12,17 +12,24 @@ Policy and Resolver. A separate deterministic executor rechecks facts and amount
 - `/console?case=DP-…` and `/app?c=…&case=DP-…`: follow the same case across bank and customer views.
 
 The sandbox account selector is inside Demo controls, outside the complaint flow. The bank desk's Sandbox controls
-run reconciliation or generate synthetic arrivals. All queued channels process independently of the arrival generator.
+run reconciliation or generate synthetic arrivals. Known issue: reconciliation cases currently wait while synthetic-arrival
+autopilot is off; restoring independent processing is tracked in the [product review](docs/product-review.md).
 
 ## Customer-to-agent demo journey
+
+**Latest review:** [Problems, sponsor integration decisions, and iteration gates](docs/product-review.md).
+Iteration 1 replaces the overlay tour with optional in-flow guidance: Customer → Agent investigation → Outcome.
+Open `/app?tour=1` to try it. Guidance follows the actual case state and never changes the agent being inspected.
+
 
 1. Open `/app`, choose **New question**, and write a complaint or select a sandbox story:
    suspected KYC fraud, a double payment at a shop, or an unresponsive beneficiary bank.
    Each story selects its matching sandbox account and fills an editable message; agents determine the outcome.
 2. Press **Send**. A dialog offers **Watch agents** or **Back to message**. The complaint has not been submitted yet.
-3. Choose **Watch agents**. The browser opens `/console?handoff=1`; the mounted bank desk submits the draft,
+3. Choose **Watch agents**. The browser opens `/console?handoff=<draft-id>`; the mounted bank desk submits the draft,
    selects the returned case, and follows its investigation. The temporary draft is stored in session storage
-   and removed after successful submission.
+   and marked submitted with the case ID after a successful response. Revisiting that draft reopens the case; an interrupted
+   submission is surfaced for review rather than silently resent.
 4. Inspect an agent or recorded connection to review its work. **Follow live** returns to the active agent and
    recenters the map, including when clicked again after scrolling. At completion it becomes **Latest outcome**.
 5. Use **Case details**, beside the customer name, for the customer thread, actions and receipt, source evidence,
@@ -56,8 +63,8 @@ npm start -- -p 3001
 The browser API URL is baked into the frontend build. Rebuild when changing backend ports.
 
 Current local demo: customer app `http://localhost:3011/app`, bank desk `http://localhost:3011/console`,
-Codex backend `http://localhost:8012`. These are local preview ports, separate from the defaults above.
-Build that preview with `NEXT_PUBLIC_API_URL=http://localhost:8012 npm run build`, then serve with
+Codex backend `http://localhost:8000`. These are local preview ports, separate from the defaults above.
+Build that preview with `NEXT_PUBLIC_API_URL=http://localhost:8000 npm run build`, then serve with
 `npm start -- --port 3011`.
 
 Agents use Codex CLI with the team's ChatGPT login. Development model: `gpt-6-luna`, low effort. No OpenAI API key.

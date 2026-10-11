@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '@/components/meta'
 
-// Replay of a real Codex run (case DP-2944, Hindi complaint via the UPI app). Text is abridged from that run.
+// Replay of a real Codex run (case DP-2944, Hindi complaint via the UPI app). Text is abridged and translated into English from that run.
 const STEPS = [
-  { id: 'intake', name: 'Intake', did: 'UTR came with the complaint · P2P ₹2,000' },
-  { id: 'investigator', name: 'Investigator', did: 'NPCI: deemed, no TCC · CBS: debited · no credit at Kaveri Bank' },
-  { id: 'policy', name: 'Policy', did: 'RBI T+1 · Sahyadri refunds, recovers from Kaveri · ₹0 owed' },
-  { id: 'resolver', name: 'Resolver', did: 'Fraud risk 0/100 · refund + UDIR chargeback' },
-  { id: 'executor', name: 'Execution engine', did: 'Re-verified, then refund PST663BD20F13 posted' },
+  { id: 'intake', name: 'Intake', did: 'Found the ₹2,000 payment to Anita' },
+  { id: 'investigator', name: 'Investigator', did: 'Money left the account but did not reach Anita' },
+  { id: 'policy', name: 'Policy', did: 'Checked the refund deadline and compensation' },
+  { id: 'resolver', name: 'Resolver', did: 'Recommended a refund and recovery from the other bank' },
+  { id: 'executor', name: 'Execution engine', did: 'Checked again and confirmed the refund' },
 ]
 
 export default function SquadHero() {
@@ -27,9 +27,9 @@ export default function SquadHero() {
 
   return (
     <div className="relative rounded-2xl border border-white/10 bg-[#0d1830]/80 p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,.6)] backdrop-blur sm:p-6">
-      <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[.16em] text-white/40">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[.16em] text-white/40">
         <span className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" /> Real case · DP-2944
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Recorded case · DP-2944
         </span>
         <span className="font-mono normal-case tracking-normal">gpt-6-luna via Codex</span>
       </div>
@@ -38,7 +38,7 @@ export default function SquadHero() {
         <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.14em] text-sky-300">
           <Icon name="complaint" className="h-3.5 w-3.5" /> Customer · UPI app
         </div>
-        <p className="mt-2 text-[15px] leading-relaxed text-white/90">“मेरे खाते से ₹2000 कट गए लेकिन Anita को नहीं मिले…”</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-white/90">“₹2,000 left my account, but Anita hasn’t received it.”</p>
       </div>
 
       <ol className="mt-4 space-y-1.5">
@@ -51,8 +51,8 @@ export default function SquadHero() {
                 <Icon name={state === 'done' ? 'check' : s.id} className="h-3.5 w-3.5" />
               </span>
               <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-white">{s.name}{state === 'running' && <span className="ml-2 text-[11px] font-normal text-blue-300">working…</span>}</p>
-                <p className="truncate text-[12px] text-white/50">{s.did}</p>
+                <p className="text-[13px] font-semibold text-white">{s.name}{state === 'running' && <span className="ml-2 text-[11px] font-normal text-blue-300">replay</span>}</p>
+                <p className="text-[12px] leading-5 text-white/50">{s.did}</p>
               </div>
             </li>
           )
@@ -64,7 +64,7 @@ export default function SquadHero() {
           <p className="font-display text-2xl font-semibold tracking-tight text-white">₹2,000 refunded</p>
           <p className="text-sm font-medium text-emerald-300">9h 29m before the deadline</p>
         </div>
-        <p className="mt-1 text-[12px] text-white/55">Reply sent to the customer · 82 s · 11 system calls · ₹0 penalty</p>
+        <p className="mt-1 text-[12px] text-white/55">Illustrated replay · original run 82 s · 11 system calls · ₹0 penalty</p>
       </div>
     </div>
   )

@@ -28,7 +28,8 @@ import ResultPanel from '@/components/desk/ResultPanel'
 import Countdown from '@/components/desk/Countdown'
 import { Icon, NODE_META } from '@/components/meta'
 import PortalSwitch from '@/components/PortalSwitch'
-import Tour, { TOUR_SEEN, TOUR_STAGE, tourStore, type TourStep } from '@/components/tour/Tour'
+import Tour from '@/components/tour/Tour'
+import { readDraft, saveDraft } from '@/lib/handoff'
 
 const FILTERS = [
   'All cases',
@@ -83,16 +84,59 @@ export default function Desk() {
     [replay, setReplay] = useState<number | null>(null)
   const selectedRef = useRef<string | null>(null)
   const [focusTick, setFocusTick] = useState(0)
-  const [tour, setTour] = useState<'full' | 'short' | null>(null)
+  const [tour, setTour] = useState(false)
+  const [handoff, setHandoff] = useState<'loading' | 'failed' | null>(null)
+  const handoffStarted = useRef(false)
+  const handoffPending = useRef(false)
   useEffect(() => {
     const q = new URLSearchParams(window.location.search)
-    // A customer who just pressed Send arrives with their case: follow it live.
-    if (q.has('case') && tourStore(TOUR_STAGE) === 'console') {
-      setTour('full')
-      setNode('intake')
-      setFollow(true)
-    } else if (q.has('tour') || !tourStore(TOUR_SEEN)) setTour('short')
-    tourStore(TOUR_SEEN, '1')
+    setTour(q.has('tour'))
+    const id = q.get('handoff')
+    if (!id || handoffStarted.current) return
+    handoffStarted.current = true
+    handoffPending.current = true
+    setHandoff('loading')
+    const start = async () => {
+      try {
+        const draft = readDraft(id)
+        if (!draft)
+          throw new Error(
+            'No complaint draft was found in this tab. Return to the customer portal to write one.',
+          )
+        if (draft.state === 'sending')
+          throw new Error(
+            'Submission was interrupted. Check the case inbox before sending again.',
+          )
+        setTour(draft.guided)
+        let c: DeskCase
+        if (draft.state === 'sent' && draft.caseId) {
+          c = await api<DeskCase>(`/api/desk/cases/${draft.caseId}`)
+        } else {
+          saveDraft({ ...draft, state: 'sending' }, id)
+          c = await api<DeskCase>(draft.path, draft.body)
+          saveDraft({ ...draft, state: 'sent', caseId: c.id }, id)
+        }
+        setCases((cs) => [c, ...cs.filter((item) => item.id !== c.id)])
+        selectedRef.current = c.id
+        setSelected(c.id)
+        setDetail(c)
+        setFollow(true)
+        setNode('intake')
+        setPanel('agent')
+        setHandoff(null)
+      } catch (e) {
+        setNote((e as Error).message)
+        setHandoff('failed')
+      } finally {
+        handoffPending.current = false
+      }
+    }
+    // Let the bank workspace paint before admitting the complaint to the automatic queue.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        void start()
+      }),
+    )
   }, [])
   const kase =
     detail?.id === selected ? detail : cases.find((c) => c.id === selected)
@@ -106,13 +150,17 @@ export default function Desk() {
       setPilot(ap)
       setConnected(true)
       setSelected((s) =>
-        s && cs.some((c) => c.id === s)
+        handoffPending.current
+          ? s
+          : selectedRef.current && !cs.some((c) => c.id === selectedRef.current)
             ? s
-            : ((
-                cs.find((c) => c.status === 'NEEDS_YOU') ??
-                cs.find((c) => c.status === 'WORKING') ??
-                cs[0]
-              )?.id ?? null),
+            : s && cs.some((c) => c.id === s)
+              ? s
+              : ((
+                  cs.find((c) => c.status === 'NEEDS_YOU') ??
+                  cs.find((c) => c.status === 'WORKING') ??
+                  cs[0]
+                )?.id ?? null),
       )
     } catch {
       setConnected(false)
@@ -131,13 +179,15 @@ export default function Desk() {
     selectedRef.current = selected
     setReplay(null)
     setFollow(true)
-    if (selected)
+  }, [selected])
+  useEffect(() => {
+    if (selected && !handoffPending.current)
       window.history.replaceState(
         null,
         '',
-        `/console?case=${encodeURIComponent(selected)}`,
+        `/console?case=${encodeURIComponent(selected)}${tour ? '&tour=1' : ''}`,
       )
-  }, [selected])
+  }, [selected, tour])
   const stamp = cases.find((c) => c.id === selected)?.updated_at
   useEffect(() => {
     if (!selected) {
@@ -282,116 +332,8 @@ export default function Desk() {
         (a.deadline_at ?? '9999').localeCompare(b.deadline_at ?? '9999')
       )
     })
-  const settled = ['awaiting', 'done', 'error'].includes(run.phase)
-  const begun = (n: NodeId) => run.nodes[n].status !== 'idle' || settled
-  const showNode = (n: NodeId) => () => {
-    setNode(n)
-    setPanel('agent')
-    setFollow(false)
-  }
-  const resolutionStep: TourStep = {
-    target: 'resolution',
-    title:
-      run.phase === 'awaiting'
-        ? 'Your call: approve or decline'
-        : settled
-          ? 'Resolved, with proof'
-          : 'Waiting for the outcome',
-    body:
-      run.phase === 'awaiting' ? (
-        <>
-          The agents stopped here on purpose. Check the evidence and the exact actions they propose, then approve or
-          decline. Nothing moves until a person signs off. Every step is in the case’s <b>neatlogs</b> trace.
-        </>
-      ) : (
-        <>
-          What the agents found, the RBI rule applied, the actions confirmed in the bank’s systems and the reply sent to
-          the customer. Every step is in the case’s <b>neatlogs</b> trace.
-        </>
-      ),
-    ready: settled,
-    waiting: 'Agents are finishing the case…',
-    onEnter: () => {
-      setPanel('result')
-      setFollow(false)
-    },
-  }
-  const fullTour: TourStep[] = [
-    {
-      target: 'inbox-active',
-      title: 'Your complaint just landed at the bank',
-      body: 'It arrived in the case inbox with the RBI deadline already counting down. Nobody assigns it: the squad picks it up on its own.',
-      ready: !!kase,
-      waiting: 'Submitting your complaint…',
-    },
-    {
-      target: 'node-orchestrator',
-      title: 'The squad takes over',
-      body: 'Intake finds the exact payment from your words. The Orchestrator then decides which agent works the case next, based only on evidence.',
-      ready: begun('orchestrator'),
-      waiting: 'Intake is finding your payment…',
-    },
-    {
-      target: 'node-investigator',
-      title: 'Each agent has one job',
-      body: 'Investigator checks NPCI, core banking and the other bank. Policy applies the RBI T+1 / T+5 rule. Resolver plans the fix. Click any card to see what it did.',
-      ready: begun('investigator'),
-      waiting: 'The Orchestrator is routing the case…',
-      onEnter: () => setFollow(true),
-    },
-    {
-      target: 'node-executor',
-      title: 'Guardrails before money moves',
-      body: 'The execution engine re-checks the evidence and recomputes every amount. Fraud, or anything above ₹10,000, waits for a human to approve.',
-      ready: begun('executor'),
-      waiting: 'Policy and Resolver are working…',
-    },
-    {
-      ...resolutionStep,
-      extra: kase && settled ? (
-        <Link
-          href={`/app?c=${kase.customer_id}&case=${kase.id}`}
-          className="mt-3 block text-xs font-semibold text-blue-600"
-        >
-          See the reply in the customer app ↗
-        </Link>
-      ) : null,
-    },
-  ]
-  const shortTour: TourStep[] = [
-    {
-      target: 'inbox',
-      title: 'The bank’s case inbox',
-      body: 'Complaints from the UPI app and chat, plus exceptions found by the nightly reconciliation, land here. Each carries its RBI deadline.',
-    },
-    {
-      target: 'node-orchestrator',
-      title: 'The squad works every case',
-      body: 'Intake finds the payment, the Orchestrator routes on evidence, and Investigator, Policy and Resolver each do one job.',
-    },
-    {
-      target: 'node-investigator',
-      title: 'Open any agent',
-      body: 'Click a card to see what that agent checked, which systems it called, and what it concluded.',
-      onEnter: showNode('investigator'),
-    },
-    { ...resolutionStep, ready: true, title: 'Proof for every outcome' },
-  ]
-  const endTour = (finished: boolean) => {
-    setTour(null)
-    tourStore(TOUR_STAGE, null)
-    if (finished) setFollow(true)
-  }
-
   return (
     <div className="desk-shell flex flex-col lg:h-screen lg:overflow-hidden">
-      <Tour
-        open={!!tour}
-        steps={tour === 'full' ? fullTour : shortTour}
-        first={tour === 'full' ? 4 : 1}
-        total={tour === 'full' ? 8 : 4}
-        onClose={endTour}
-      />
       <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-4 bg-[#111d32] px-5 py-3 text-white">
         <Link
           href="/"
@@ -406,7 +348,11 @@ export default function Desk() {
           <PortalSwitch
             dark
             current="bank"
-            customerHref={kase && kase.channel !== 'RECON' ? `/app?c=${kase.customer_id}&case=${kase.id}` : '/app'}
+            customerHref={
+              kase && kase.channel !== 'RECON'
+                ? `/app?c=${kase.customer_id}&case=${kase.id}`
+                : '/app'
+            }
           />
         </span>
         <span className="rounded border border-white/15 px-2 py-1 text-[10px] uppercase tracking-widest text-white/60">
@@ -418,8 +364,11 @@ export default function Desk() {
           >
             ● {connected ? 'Connected' : 'Reconnecting'}
           </span>
-          <button onClick={() => setTour('short')} className="text-xs text-white/60 hover:text-white">
-            Take the tour
+          <button
+            onClick={() => setTour(true)}
+            className="text-xs text-white/60 hover:text-white"
+          >
+            Guide me
           </button>
 
           <button
@@ -496,7 +445,10 @@ export default function Desk() {
         </div>
       )}
       <div className="grid min-h-0 flex-1 lg:grid-cols-[245px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_350px] 2xl:grid-cols-[245px_minmax(0,1fr)_380px]">
-        <aside data-tour="inbox" className="flex max-h-72 flex-col border-r border-slate-200 bg-white lg:max-h-none">
+        <aside
+          data-tour="inbox"
+          className="flex max-h-72 flex-col border-r border-slate-200 bg-white lg:max-h-none"
+        >
           <div className="p-4">
             <div className="mb-3 flex justify-between">
               <h2 className="text-sm font-semibold">Case inbox</h2>
@@ -523,6 +475,7 @@ export default function Desk() {
                 key={c.id}
                 data-tour={selected === c.id ? 'inbox-active' : undefined}
                 onClick={() => {
+                  setHandoff(null)
                   setSelected(c.id)
                   setDetail(null)
                   setPanel('agent')
@@ -554,7 +507,36 @@ export default function Desk() {
           </div>
         </aside>
         <main className="flex min-h-0 min-w-0 flex-col">
-          {kase ? (
+          {tour && (
+            <Tour
+              view="bank"
+              kase={kase}
+              run={run}
+              active={active}
+              onClose={() => setTour(false)}
+            />
+          )}
+          {handoff ? (
+            <div className="grid min-h-[350px] flex-1 place-items-center p-8 text-center">
+              <div>
+                <h1 className="text-xl font-semibold">
+                  {handoff === 'loading'
+                    ? 'The bank desk is ready'
+                    : 'Your complaint needs attention'}
+                </h1>
+                <p role="status" className="mt-3 text-sm text-slate-500">
+                  {handoff === 'loading'
+                    ? 'Submitting your complaint. The investigation will appear here.'
+                    : note}
+                </p>
+                {handoff === 'failed' && (
+                  <Link className="desk-button mt-5" href="/app">
+                    Return to customer portal →
+                  </Link>
+                )}
+              </div>
+            </div>
+          ) : kase ? (
             <>
               <div className="border-b bg-white px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -579,7 +561,9 @@ export default function Desk() {
                       <button
                         className="desk-button desk-primary"
                         disabled={busy}
-                        onClick={() => act(() => api(`/api/desk/cases/${kase.id}/start`, {}))}
+                        onClick={() =>
+                          act(() => api(`/api/desk/cases/${kase.id}/start`, {}))
+                        }
                       >
                         <Icon name="play" className="h-3 w-3" /> Start agents
                       </button>

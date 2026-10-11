@@ -83,3 +83,6 @@ def brain_label() -> str:
 
 def model_name() -> str | None:
     return {"codex": CODEX_MODEL, "bedrock": BEDROCK_MODEL_ID, "anthropic": ANTHROPIC_MODEL}.get(brain())
+
+# Server-only company research; never exposed in client assets or evidence files.
+CRUSTDATA_API_KEY = os.environ.get("CRUSTDATA_API_KEY", "")

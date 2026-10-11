@@ -54,8 +54,8 @@ autopilot.py (recon + a complaint every 120s, max 10)  RESOLVED ESCALATED FAILED
 - Backend (Python 3.13 venv; no `--reload` — reload kills in-flight runs; don't edit backend files mid-run):
   `cd backend && /Users/admin/Desktop/neathack-upi/backend/.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000`
 - Frontend: `cd frontend && npm run build && npm start -- -p 3001`
-- Current local preview: frontend `3011`, isolated Codex backend `8012`. Build with
-  `NEXT_PUBLIC_API_URL=http://localhost:8012 npm run build`; serve with `npm start -- --port 3011`.
+- Current UX review preview: frontend `3011`, existing Codex backend `8000`. Build with
+  `NEXT_PUBLIC_API_URL=http://localhost:8000 npm run build`; serve with `npm start -- --port 3011`.
 - Sandbox controls in `/console` offer reconciliation and synthetic arrivals. Each real Codex case has historically
   used approximately 250–400k tokens and 1–1.5 minutes; actual usage and duration vary.
 
@@ -85,7 +85,8 @@ Read .entire/agent-guide.md for this repository's workflow, source inspection, a
 - `/console` is an interactive event-driven agent map, case inbox, evidence/review/receipt workspace and recorded-event replay.
 - Execution engine is a separate non-AI node; approval revalidates the displayed actions before execution.
 - `/app` uses explicit case-scoped replies and offers specialist review requests. Account switching is in Demo controls.
-- All queued channels process independently of synthetic arrivals. SQLite `desk_events` persists replay; full outcomes persist on cases.
+- SQLite `desk_events` persists replay; full outcomes persist on cases. Known regression: RECON processing is currently
+  gated by autopilot. Fixing that policy mismatch is part of iteration 2 in `docs/product-review.md`.
 - In-flight/approval cases interrupted by restart move to specialist review; no silent automatic financial retry.
 - Customer handoff: Send opens a dialog without submitting. Watch agents transfers a session-storage draft to the
   mounted bank desk, which submits it and follows the returned case. Applies to new complaints, payment complaints and
@@ -98,3 +99,15 @@ Read .entire/agent-guide.md for this repository's workflow, source inspection, a
 - Latest UX verification: production build and headless browser interaction checks passed. Browser checks used simulated
   run events, not a new real-model investigation. Earlier real-Codex validation remains documented in `hackathon.md`.
 - Run `cd backend && .venv/bin/python -m unittest discover -s tests -v` for isolated integration checks.
+
+## Current product review
+
+Read `docs/product-review.md` before further redesign. Keep changes bounded by its iteration gates.
+Iteration 1 replaces the blocking overlay tour with optional in-flow guidance, restores pre-submission handoff,
+and labels the homepage illustration as a recorded replay. No automatic tour on a normal visit.
+The guide must handle clarification, failure, approval and skipped agents without waiting for a fixed sequence.
+Next priority: reconcile the customer receipt with executed actions, restore explicit recon processing, and make repeat
+sandbox demos reliable. cfo.ai is required for the business plan; Crustdata is optional and must add defensible evidence.
+
+- cfo.ai workspace confirmed; official global `cfoai` MCP connection authenticated during iteration 1. The business plan is
+  still pending. `docs/cfo-inputs.json` captures aggregate sandbox metrics and the assumptions still needed.

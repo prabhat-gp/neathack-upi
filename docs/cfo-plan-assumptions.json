@@ -1,0 +1,26 @@
+{
+  "currency": "INR",
+  "horizon": "2026-10 to 2027-09",
+  "status": "illustrative assumptions, not actual revenue or commitments",
+  "inputs": {
+    "Monthly bank fee INR": 100000,
+    "Included cases per bank": 1000,
+    "Overage price INR": 30,
+    "Cases per bank per month": 1500,
+    "Onboarding fee INR": 200000,
+    "Onboarding cost INR": 100000,
+    "Model cost per case INR": 8,
+    "Infrastructure per case INR": 2,
+    "Review fraction": 0.1,
+    "Minutes per review": 5,
+    "Reviewer hourly cost INR": 600,
+    "Delivery support per bank INR": 20000,
+    "Platform hosting per month INR": 50000,
+    "Team roles": 3,
+    "Loaded cost per role INR": 200000,
+    "Sales and admin per month INR": 100000,
+    "Starting cash assumption INR": 5000000,
+    "Pilot launch month": 4,
+    "Months between new banks": 4
+  }
+}

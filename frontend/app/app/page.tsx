@@ -5,7 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, rs, type DeskCase, type Message } from '@/lib/run'
 import { Icon } from '@/components/meta'
 import PortalSwitch from '@/components/PortalSwitch'
-import Tour, { TOUR_SEEN, TOUR_STAGE, tourStore, type TourStep } from '@/components/tour/Tour'
+import Tour from '@/components/tour/Tour'
+import { saveDraft } from '@/lib/handoff'
 
 type Person = { id: string; name: string; vpa: string }
 type Txn = {
@@ -69,14 +70,18 @@ export default function CustomerApp() {
     [err, setErr] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const [touring, setTouring] = useState(false)
-  const [sent, setSent] = useState<DeskCase | null>(null)
+  const [handoff, setHandoff] = useState(false)
+  const handoffDialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
-    const asked = new URLSearchParams(window.location.search).has('tour')
-    if (asked || !tourStore(TOUR_SEEN)) {
-      tourStore(TOUR_SEEN, '1')
+    if (new URLSearchParams(window.location.search).has('tour')) {
       setTouring(true)
+      setTab('help')
     }
   }, [])
+  useEffect(() => {
+    if (handoff) handoffDialog.current?.showModal()
+    else handoffDialog.current?.close()
+  }, [handoff])
   const dialog = useRef<HTMLElement>(null)
   const workspace = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -89,7 +94,7 @@ export default function CustomerApp() {
       })
   }, [tab, selected])
   useEffect(() => {
-    if (!txn) return
+    if (!txn || handoff) return
     const previous = document.activeElement as HTMLElement | null
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -117,7 +122,7 @@ export default function CustomerApp() {
       document.removeEventListener('keydown', handler)
       previous?.focus()
     }
-  }, [txn])
+  }, [txn, handoff])
 
   useEffect(() => {
     api<Person[]>('/api/app/customers')
@@ -163,8 +168,10 @@ export default function CustomerApp() {
   const messages = thread.filter((m) => m.case_id === selected)
   async function submit(requestReview = false) {
     if (!text.trim() || busy) return
-    // A new complaint (or the answer the agents asked for) starts the agents at once; then offer to watch them.
-    const toDesk = !requestReview && (!!txn || !selected || kase?.status === 'NEEDS_INFO')
+    if (!requestReview && (txn || !selected || kase?.status === 'NEEDS_INFO')) {
+      setHandoff(true)
+      return
+    }
     setBusy(true)
     setErr(null)
     try {
@@ -179,13 +186,6 @@ export default function CustomerApp() {
               request_review: requestReview,
             },
       )
-      if (toDesk) {
-        if (touring) {
-          tourStore(TOUR_STAGE, 'console')
-          setTouring(false)
-        }
-        setSent(c)
-      }
       setSelected(c.id)
       setTxn(null)
       setText('')
@@ -203,42 +203,27 @@ export default function CustomerApp() {
     setTxn(null)
     setText('')
   }
-  const tourSteps: TourStep[] = [
-    {
-      title: 'Welcome to DisputePro',
-      body: (
-        <>
-          You’re a <b>Sahyadri Bank</b> customer and a UPI payment has gone wrong. Raise a complaint here, then watch a
-          squad of AI agents resolve it on the bank’s side, live.
-        </>
-      ),
-    },
-    {
-      target: 'workspace',
-      title: 'This is your account',
-      body: 'A real week of UPI payments in the sandbox bank. Tap a stuck payment to complain about it, or describe the problem in your own words.',
-      onEnter: () => {
-        setTxn(null)
-        setTab('payments')
-      },
-    },
-    {
-      target: 'help',
-      title: 'Tell the bank what went wrong',
-      body: (
-        <>
-          Tap a story or type in any language, Hindi, Hinglish or English. No transaction ID needed. Then press{' '}
-          <b>Send</b>. The agents start right away, and you can watch them on the bank’s desk.
-        </>
-      ),
-      action: 'Pick a story, then press Send',
-      onEnter: () => {
-        setTxn(null)
-        setSelected(null)
-        setTab('help')
-      },
-    },
-  ]
+  function watchAgents() {
+    if (busy) return
+    setBusy(true)
+    setErr(null)
+    try {
+      const id = saveDraft({
+        path: txn ? '/channels/udir' : '/channels/chat',
+        body: txn
+          ? { customer_id: me, utr: txn.utr, text: text.trim() }
+          : { customer_id: me, text: text.trim(), case_id: selected },
+        guided: touring,
+        state: 'ready',
+      })
+      router.push(`/console?handoff=${id}${touring ? '&tour=1' : ''}`)
+    } catch {
+      setBusy(false)
+      setErr(
+        'Your browser could not save the draft. Enable session storage and try again.',
+      )
+    }
+  }
   return (
     <div className="min-h-screen bg-[#f5f7fb] text-[#17243b]">
       <header className="border-b bg-white">
@@ -250,13 +235,22 @@ export default function CustomerApp() {
             DisputePro
           </Link>
           <span className="hidden sm:block">
-            <PortalSwitch current="customer" bankHref={selected ? `/console?case=${selected}` : '/console'} />
+            <PortalSwitch
+              current="customer"
+              bankHref={selected ? `/console?case=${selected}` : '/console'}
+            />
           </span>
           <span className="ml-auto rounded border px-2 py-1 text-[10px] uppercase tracking-widest text-slate-400">
             Sandbox · fictional bank
           </span>
-          <button onClick={() => setTouring(true)} className="text-xs font-medium text-blue-600 hover:text-blue-800">
-            Take the tour
+          <button
+            onClick={() => {
+              setTouring(true)
+              setTab('help')
+            }}
+            className="text-xs font-medium text-blue-600 hover:text-blue-800"
+          >
+            Guide me
           </button>
           <details className="relative">
             <summary className="cursor-pointer text-xs text-slate-500">
@@ -296,7 +290,7 @@ export default function CustomerApp() {
         </div>
       </header>
       <main className="mx-auto grid max-w-6xl gap-8 px-4 py-8 md:px-6 lg:grid-cols-[330px_minmax(0,1fr)] lg:py-12">
-        <aside>
+        <aside className={touring ? 'hidden lg:block' : undefined}>
           <p className="text-xs font-semibold uppercase tracking-[.18em] text-blue-600">
             Sahyadri Bank
           </p>
@@ -308,7 +302,10 @@ export default function CustomerApp() {
             Get help with a payment. Track what the bank finds and see the proof
             when it’s resolved.
           </p>
-          <div data-tour="balance" className="mt-7 rounded-2xl bg-[#17243b] p-6 text-white">
+          <div
+            data-tour="balance"
+            className="mt-7 rounded-2xl bg-[#17243b] p-6 text-white"
+          >
             <p className="text-xs text-white/50">
               {home?.customer.name || 'Opening your sandbox session…'}
             </p>
@@ -371,6 +368,9 @@ export default function CustomerApp() {
           ref={workspace}
           className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
         >
+          {touring && (
+            <Tour view="customer" onClose={() => setTouring(false)} />
+          )}
           <div className="flex border-b px-5">
             {(['payments', 'help'] as const).map((t) => (
               <button
@@ -456,7 +456,9 @@ export default function CustomerApp() {
               <div className="border-b p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="font-semibold">
-                    {kase ? `Case ${kase.id}` : 'How can we help?'}
+                    {kase
+                      ? `Case ${kase.id}`
+                      : `Help for ${home?.customer.name ?? 'your account'}`}
                   </h2>
                   {kase && (
                     <Link
@@ -620,37 +622,49 @@ export default function CustomerApp() {
           )}
         </section>
       </main>
-      {sent && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-[#111d32]/50 p-4 backdrop-blur-sm"
-          onClick={() => {
-            tourStore(TOUR_STAGE, null)
-            setSent(null)
-          }}>
-          <div role="dialog" aria-modal="true" aria-label="Watch the agents" onClick={(e) => e.stopPropagation()}
-            className="step-in w-full max-w-md rounded-2xl bg-white p-7 text-[#17243b] shadow-2xl">
-            <span className="mb-5 grid h-12 w-12 place-items-center rounded-xl bg-blue-50 text-blue-600">
-              <Icon name="orchestrator" className="h-6 w-6" />
-            </span>
-            <p className="text-[11px] font-semibold uppercase tracking-[.16em] text-blue-600">Case {sent.id} · agents started</p>
-            <h2 className="mt-2 text-xl font-semibold tracking-tight">Your complaint is with the bank.</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
-              The AI agents are already investigating. Watch every handoff live on the bank’s desk, or stay here and
-              the answer will appear in this conversation.
-            </p>
-            <button autoFocus onClick={() => router.push(`/console?case=${sent.id}`)}
-              className="desk-button desk-primary mt-6 w-full !py-3 !text-sm">
-              Watch agents →
-            </button>
-            <button onClick={() => {
-              tourStore(TOUR_STAGE, null)
-              setSent(null)
-            }} className="mt-3 w-full py-2 text-xs text-slate-500 hover:text-slate-800">
-              Stay here
-            </button>
-          </div>
-        </div>
-      )}
-      <Tour open={touring} total={8} onClose={() => setTouring(false)} steps={tourSteps} />
+      <dialog
+        ref={handoffDialog}
+        aria-label="Watch agent investigation"
+        onCancel={(event) => {
+          if (busy) event.preventDefault()
+          else setHandoff(false)
+        }}
+        className="w-[calc(100%-32px)] max-w-md rounded-2xl p-7 text-[#17243b] shadow-2xl backdrop:bg-[#111d32]/50 backdrop:backdrop-blur-sm"
+      >
+        <span className="mb-5 grid h-12 w-12 place-items-center rounded-xl bg-blue-50 text-blue-600">
+          <Icon name="orchestrator" className="h-6 w-6" />
+        </span>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">
+          Customer → Bank desk
+        </p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight">
+          Watch the agents take it from here.
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-slate-500">
+          Open the bank desk to send your complaint and follow the investigation
+          from its first step.
+        </p>
+        <button
+          autoFocus
+          onClick={watchAgents}
+          disabled={busy}
+          className="desk-button desk-primary mt-6 w-full"
+        >
+          {busy ? 'Opening bank desk…' : 'Watch agents →'}
+        </button>
+        <button
+          onClick={() => setHandoff(false)}
+          disabled={busy}
+          className="mt-4 w-full text-xs text-slate-500"
+        >
+          Back to message
+        </button>
+        {err && (
+          <p role="alert" className="mt-3 text-xs text-rose-700">
+            {err}
+          </p>
+        )}
+      </dialog>
       {txn && (
         <div
           className="fixed inset-0 z-40 flex items-end justify-center bg-[#111d32]/40 p-0 backdrop-blur-sm sm:items-center sm:p-5"

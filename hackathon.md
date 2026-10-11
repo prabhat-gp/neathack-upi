@@ -139,12 +139,44 @@ prabhat-gp (github.com/prabhat-gp)
   backend (fraud story → one-click send → agents → held for human approval); short tour, first-visit memory and
   390 px layout in headless Chrome against a rules-mode test backend.
 
+### Product review and guided journey, iteration 1 · 2026-10-10
+
+- Audited commits `c673d20`, `bef84cc`, and `21340b6`, the current agent pipeline, and the running product on port 3001.
+  Recorded ranked problems, integration decisions, and iteration gates in `docs/product-review.md`.
+- Replaced the automatic eight-step overlay tour with an optional in-flow Customer → Agent investigation → Outcome guide.
+  Guidance handles clarification and failure, does not wait for a fixed route, and leaves agent inspection under viewer control.
+- Restored the pre-submission handoff. Send opens a native dialog; Watch agents navigates before submitting. Cancel preserves
+  the message. Drafts track submission/case IDs so revisiting a submitted handoff reopens the case rather than resending.
+  Interrupted submissions and missing drafts produce an explicit recovery message.
+- Corrected the landing animation label to identify its illustrated historical replay; removed the blanket promise that every
+  payment resolves before the deadline. The cfo.ai status remains pending.
+- Checks actually run: production build against backend port 8000 passed. Headless Chrome interaction tests passed for direct
+  visits without an automatic tour, guided entry, no POST before handoff, cancellation preserving text, one POST after
+  navigation, revisiting a submitted draft without a second POST, manual inspection and Follow live, clarification and failure
+  guidance, guide state after refresh, missing-draft handling, and mobile layout at 390 px. Desktop checked at 1440 px.
+  No JavaScript page errors. Complaint/run endpoints were intercepted with simulated data for these interaction tests.
+- No new real-model investigation or backend integration suite was run in this iteration. Recon gating and the misleading
+  post-execution customer message are documented priorities for iteration 2, not claimed as fixed.
+- Review preview: `http://localhost:3011/app?tour=1`, connected to the existing backend on port 8000.
+- User confirmed a cfo.ai workspace. Added its official MCP server to global Codex configuration; OAuth authorization
+  succeeded. Captured aggregate run metrics and explicit economics limitations in `docs/cfo-inputs.json`; no cfo.ai model yet.
+
+### Homepage redesign — 2026-10-10
+- Customer-first entry: Quick tour goes to `/app?tour=1`; Customer portal goes to `/app`. Removed direct bank-desk entry points from the homepage.
+- Reworked section spacing, journey explanation, agent roles, recorded outcomes, sponsor cards and final call to action. Homepage replay and example messages use English.
+- Sponsor screenshots use a consistent responsive grid with uncropped images. Native dialog viewer opens in place, supports previous/next, Escape and close, traps focus and restores it to the trigger.
+- Removed the mistakenly added product screenshot gallery; retained its source captures in `frontend/public/proof/` for reference.
+- Inspected the two Desktop screenshots supplied at 23:29. cfo.ai shows its welcome chat and no data connections; Crustdata shows zero watches. These do not establish completed integration or business-plan evidence and are not presented as such.
+- cfo.ai OAuth authenticates Codex access to cfo.ai; it does not connect DisputePro as a data source inside cfo.ai. Business plan and verified Crustdata integration remain outstanding.
+- Verified production build and browser checks at 360, 390, 768 and 1440px: no horizontal overflow, no Hindi homepage text, no direct bank entry links, working screenshot viewer and customer tour navigation, no page errors. Visually reviewed desktop page and mobile evidence cards.
+- Preview: `http://localhost:3011`.
+
 ## Demo
 Public URL and video are pending. Current local preview:
 
 - Customer: `http://localhost:3011/app`
 - Bank desk: `http://localhost:3011/console`
-- Codex backend: `http://localhost:8012`
+- Codex backend: `http://localhost:8000`
 
 Demo path: New question → choose a sandbox story or write a complaint → Send → Watch agents → live bank workflow
 → approval when required → confirmed actions and customer response. See `README.md` for setup and controls.

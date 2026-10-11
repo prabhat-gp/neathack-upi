@@ -1,0 +1,79 @@
+{
+  "provider": "Crustdata",
+  "endpoint": "https://api.crustdata.com/company/identify",
+  "captured_at": "2026-10-10T18:06:36.453049+00:00",
+  "purpose": "Target-bank research for business planning; not customer or merchant risk scoring",
+  "limitations": [
+    "Company matches are not customers, sales leads or evidence of buying intent.",
+    "No match is inconclusive and must never be treated as fraud.",
+    "Company size does not establish dispute volume or willingness to pay."
+  ],
+  "companies": [
+    {
+      "domain": "aubank.in",
+      "status": "matched",
+      "candidates": [
+        {
+          "company_id": 455,
+          "confidence_score": 1.0,
+          "name": "AU SMALL FINANCE BANK",
+          "primary_domain": "au.bank.in",
+          "website": "https://www.au.bank.in/",
+          "employee_count_range": "10001+",
+          "industries": [
+            "Banking",
+            "Credit Intermediation",
+            "Financial Services"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "ujjivansfb.in",
+      "status": "matched",
+      "candidates": [
+        {
+          "company_id": 6597,
+          "confidence_score": 1.0,
+          "name": "Ujjivan Small Finance Bank",
+          "primary_domain": "ujjivansfb.bank.in",
+          "website": "https://www.ujjivansfb.bank.in",
+          "employee_count_range": "10001+",
+          "industries": [
+            "Banking",
+            "Credit Intermediation",
+            "Financial Services"
+          ]
+        },
+        {
+          "company_id": 17079384,
+          "confidence_score": 1.0,
+          "name": "People@UjjivanSFB",
+          "primary_domain": "ujjivansfb.bank.in",
+          "website": "https://www.ujjivansfb.in/",
+          "employee_count_range": null,
+          "industries": [
+            "Banking",
+            "Credit Intermediation",
+            "Financial Services"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "equitasbank.com",
+      "status": "matched",
+      "candidates": [
+        {
+          "company_id": 18593730,
+          "confidence_score": 1.0,
+          "name": "Equitas Small Finance Bank ATM",
+          "primary_domain": "equitasbank.com",
+          "website": "https://locate.equitasbank.com",
+          "employee_count_range": null,
+          "industries": []
+        }
+      ]
+    }
+  ]
+}

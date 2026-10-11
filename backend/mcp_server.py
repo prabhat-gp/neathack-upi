@@ -77,3 +77,12 @@ def http_app():
 
     app.router = inner.router  # lifespan/session manager still come from the inner app
     return app
+
+
+@server.tool()
+async def research_target_companies(domains: list[str]) -> dict:
+    """Research 1–10 company website domains using live Crustdata Identify for the business plan.
+    Returns candidate company matches with provenance. Not a fraud check, customer list or sales forecast.
+    Never supply customer emails, UPI addresses or fictional merchants."""
+    from integrations.crustdata import identify_companies
+    return await identify_companies(domains)

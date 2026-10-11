@@ -1,0 +1,497 @@
+{
+  "Base": {
+    "scenario": "Main Scenario",
+    "as_of": 276605,
+    "table": {
+      "display_name": "Revenue costs and runway",
+      "ref": "Revenue costs and runway#1cf",
+      "url": "https://app.cfo.ai/s/p_AQKApQYkMWNmODM5NDYtZGJjMy00ZGVmLTk2ZTgtODBlOTc1YjBjMGIzDWRlZmF1bHRfbGF5ZXI"
+    },
+    "periods": [
+      "2026-10",
+      "2026-11",
+      "2026-12",
+      "2027-01",
+      "2027-02",
+      "2027-03",
+      "2027-04",
+      "2027-05",
+      "2027-06",
+      "2027-07",
+      "2027-08",
+      "2027-09"
+    ],
+    "rows": [
+      {
+        "display_name": "Active banks",
+        "formulas": {
+          "forecast": "`Cumulative banks`"
+        },
+        "values": [
+          0,
+          0,
+          0,
+          1,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          2,
+          3
+        ]
+      },
+      {
+        "display_name": "Recurring revenue INR",
+        "formulas": {
+          "forecast": "`Subscription revenue INR` + `Overage revenue INR`"
+        },
+        "values": [
+          0,
+          0,
+          0,
+          115000,
+          115000,
+          115000,
+          115000,
+          230000,
+          230000,
+          230000,
+          230000,
+          345000
+        ]
+      },
+      {
+        "display_name": "Total revenue INR",
+        "formulas": {
+          "forecast": "`Recurring revenue INR` + `Onboarding revenue INR`"
+        },
+        "values": [
+          0,
+          0,
+          0,
+          315000,
+          115000,
+          115000,
+          115000,
+          430000,
+          230000,
+          230000,
+          230000,
+          545000
+        ]
+      },
+      {
+        "display_name": "Recurring gross margin",
+        "formulas": {
+          "timeless": "iferror((`Recurring revenue INR` - `Recurring delivery cost INR`) / `Recurring revenue INR`, NULL)"
+        },
+        "values": [
+          null,
+          null,
+          null,
+          0.6304347826086957,
+          0.6304347826086957,
+          0.6304347826086957,
+          0.6304347826086957,
+          0.6304347826086957,
+          0.6304347826086957,
+          0.6304347826086957,
+          0.6304347826086957,
+          0.6304347826086957
+        ]
+      },
+      {
+        "display_name": "Net cash flow INR",
+        "formulas": {
+          "forecast": "`Customer cash collected INR` - `Cash paid INR`"
+        },
+        "values": [
+          -750000,
+          -750000,
+          -750000,
+          -892500,
+          -477500,
+          -677500,
+          -677500,
+          -820000,
+          -405000,
+          -605000,
+          -605000,
+          -747500
+        ]
+      },
+      {
+        "display_name": "Ending cash INR",
+        "formulas": {
+          "forecast": "if(`Plan month` = 1, `Starting cash assumption INR`$, `Ending cash INR`[-1]) + `Net cash flow INR`"
+        },
+        "values": [
+          4250000,
+          3500000,
+          2750000,
+          1857500,
+          1380000,
+          702500,
+          25000,
+          -795000,
+          -1200000,
+          -1805000,
+          -2410000,
+          -3157500
+        ]
+      },
+      {
+        "display_name": "Funding gap INR",
+        "formulas": {
+          "forecast": "max(0, -`Ending cash INR`)"
+        },
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          795000,
+          1200000,
+          1805000,
+          2410000,
+          3157500
+        ]
+      }
+    ]
+  },
+  "Downside": {
+    "scenario": "Downside",
+    "as_of": 276605,
+    "table": {
+      "display_name": "Revenue costs and runway",
+      "ref": "Revenue costs and runway#1cf",
+      "url": "https://app.cfo.ai/s/p_AQKApQYkMWNmODM5NDYtZGJjMy00ZGVmLTk2ZTgtODBlOTc1YjBjMGIzJGU2NGNmNzI2LTE4MTYtNDJiNy1hNmY3LWYzOTA0ZDVjMTlkYg"
+    },
+    "periods": [
+      "2026-10",
+      "2026-11",
+      "2026-12",
+      "2027-01",
+      "2027-02",
+      "2027-03",
+      "2027-04",
+      "2027-05",
+      "2027-06",
+      "2027-07",
+      "2027-08",
+      "2027-09"
+    ],
+    "rows": [
+      {
+        "display_name": "Active banks",
+        "formulas": {
+          "forecast": "`Cumulative banks`"
+        },
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "display_name": "Recurring revenue INR",
+        "formulas": {
+          "forecast": "`Subscription revenue INR` + `Overage revenue INR`"
+        },
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          95000,
+          95000,
+          95000,
+          95000,
+          95000,
+          95000
+        ]
+      },
+      {
+        "display_name": "Total revenue INR",
+        "formulas": {
+          "forecast": "`Recurring revenue INR` + `Onboarding revenue INR`"
+        },
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          295000,
+          95000,
+          95000,
+          95000,
+          95000,
+          95000
+        ]
+      },
+      {
+        "display_name": "Recurring gross margin",
+        "formulas": {
+          "timeless": "iferror((`Recurring revenue INR` - `Recurring delivery cost INR`) / `Recurring revenue INR`, NULL)"
+        },
+        "values": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          0.28421052631578947,
+          0.28421052631578947,
+          0.28421052631578947,
+          0.28421052631578947,
+          0.28421052631578947,
+          0.28421052631578947
+        ]
+      },
+      {
+        "display_name": "Net cash flow INR",
+        "formulas": {
+          "forecast": "`Customer cash collected INR` - `Cash paid INR`"
+        },
+        "values": [
+          -750000,
+          -750000,
+          -750000,
+          -750000,
+          -750000,
+          -750000,
+          -918000,
+          -523000,
+          -723000,
+          -723000,
+          -723000,
+          -723000
+        ]
+      },
+      {
+        "display_name": "Ending cash INR",
+        "formulas": {
+          "forecast": "if(`Plan month` = 1, `Starting cash assumption INR`$, `Ending cash INR`[-1]) + `Net cash flow INR`"
+        },
+        "values": [
+          4250000,
+          3500000,
+          2750000,
+          2000000,
+          1250000,
+          500000,
+          -418000,
+          -941000,
+          -1664000,
+          -2387000,
+          -3110000,
+          -3833000
+        ]
+      },
+      {
+        "display_name": "Funding gap INR",
+        "formulas": {
+          "forecast": "max(0, -`Ending cash INR`)"
+        },
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          418000,
+          941000,
+          1664000,
+          2387000,
+          3110000,
+          3833000
+        ]
+      }
+    ]
+  },
+  "Upside": {
+    "scenario": "Upside",
+    "as_of": 276605,
+    "table": {
+      "display_name": "Revenue costs and runway",
+      "ref": "Revenue costs and runway#1cf",
+      "url": "https://app.cfo.ai/s/p_AQKApQYkMWNmODM5NDYtZGJjMy00ZGVmLTk2ZTgtODBlOTc1YjBjMGIzJGY3YmZlYjE0LTBjZGYtNDM5My04YmU3LTNkZTcxMDI2NmZhNA"
+    },
+    "periods": [
+      "2026-10",
+      "2026-11",
+      "2026-12",
+      "2027-01",
+      "2027-02",
+      "2027-03",
+      "2027-04",
+      "2027-05",
+      "2027-06",
+      "2027-07",
+      "2027-08",
+      "2027-09"
+    ],
+    "rows": [
+      {
+        "display_name": "Active banks",
+        "formulas": {
+          "forecast": "`Cumulative banks`"
+        },
+        "values": [
+          0,
+          0,
+          1,
+          1,
+          2,
+          2,
+          3,
+          3,
+          4,
+          4,
+          5,
+          5
+        ]
+      },
+      {
+        "display_name": "Recurring revenue INR",
+        "formulas": {
+          "forecast": "`Subscription revenue INR` + `Overage revenue INR`"
+        },
+        "values": [
+          0,
+          0,
+          135000,
+          135000,
+          270000,
+          270000,
+          405000,
+          405000,
+          540000,
+          540000,
+          675000,
+          675000
+        ]
+      },
+      {
+        "display_name": "Total revenue INR",
+        "formulas": {
+          "forecast": "`Recurring revenue INR` + `Onboarding revenue INR`"
+        },
+        "values": [
+          0,
+          0,
+          335000,
+          135000,
+          470000,
+          270000,
+          605000,
+          405000,
+          740000,
+          540000,
+          875000,
+          675000
+        ]
+      },
+      {
+        "display_name": "Recurring gross margin",
+        "formulas": {
+          "timeless": "iferror((`Recurring revenue INR` - `Recurring delivery cost INR`) / `Recurring revenue INR`, NULL)"
+        },
+        "values": [
+          null,
+          null,
+          0.7240740740740741,
+          0.7240740740740741,
+          0.7240740740740741,
+          0.7240740740740741,
+          0.7240740740740741,
+          0.7240740740740741,
+          0.7240740740740741,
+          0.7240740740740741,
+          0.7240740740740741,
+          0.7240740740740741
+        ]
+      },
+      {
+        "display_name": "Net cash flow INR",
+        "formulas": {
+          "forecast": "`Customer cash collected INR` - `Cash paid INR`"
+        },
+        "values": [
+          -750000,
+          -750000,
+          -887250,
+          -452250,
+          -789500,
+          -354500,
+          -691750,
+          -256750,
+          -594000,
+          -159000,
+          -496250,
+          -61250
+        ]
+      },
+      {
+        "display_name": "Ending cash INR",
+        "formulas": {
+          "forecast": "if(`Plan month` = 1, `Starting cash assumption INR`$, `Ending cash INR`[-1]) + `Net cash flow INR`"
+        },
+        "values": [
+          4250000,
+          3500000,
+          2612750,
+          2160500,
+          1371000,
+          1016500,
+          324750,
+          68000,
+          -526000,
+          -685000,
+          -1181250,
+          -1242500
+        ]
+      },
+      {
+        "display_name": "Funding gap INR",
+        "formulas": {
+          "forecast": "max(0, -`Ending cash INR`)"
+        },
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          526000,
+          685000,
+          1181250,
+          1242500
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "captured_at": "2026-10-10T17:46:51.486062+00:00",
+  "source": "local sandbox /api/metrics",
+  "measured": {
+    "runs": 59,
+    "llm_runs": 49,
+    "resolved_or_actioned": 56,
+    "held_for_approval": 3,
+    "escalated": 0,
+    "deadline_cases": 34,
+    "deadlines_met": 33,
+    "penalty_paid_inr": 0.0,
+    "refunded_inr": 80380.0,
+    "frozen_for_fraud_victims_inr": 93600.0,
+    "avg_seconds_per_case": 122.1,
+    "avg_party_calls_per_case": 10.9,
+    "llm_cost_usd_total": 0,
+    "llm_cost_usd_per_case": 0.0,
+    "tokens_per_case": 402107,
+    "human_touches_per_case": 0.05,
+    "agent_model": "gpt-6-luna"
+  },
+  "limitations": [
+    "Runs are not unique customers or unique cases. Repeated demo runs may be included.",
+    "Some metrics aggregate rules and model runs. Validate cohort definitions before pricing.",
+    "Reported marginal model cost excludes subscription allocation, infrastructure and human review.",
+    "Sandbox results do not establish real bank recovery rates or production SLAs."
+  ],
+  "assumptions_to_collect": [
+    "Bank subscription and included cases",
+    "Overage price per case",
+    "Monthly cases per bank and customer acquisition ramp",
+    "Model/subscription allocation and infrastructure",
+    "Reviewer time and loaded hourly cost",
+    "Implementation/support staffing",
+    "Starting cash and sales cycle"
+  ],
+  "requested_cfo_outputs": [
+    "Base, upside and downside pricing/cost/revenue model",
+    "Gross margin and cost per resolved case",
+    "Monthly cash flow and runway",
+    "Shareable model/page with actuals and assumptions distinguished"
+  ]
+}
