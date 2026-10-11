@@ -253,14 +253,17 @@ def _outcome(run: Run, closing: dict) -> dict:
         "CLOSED": "Closed with proof · no chargeback" if ct == "CREDIT_CONFIRMED" else "Already resolved",
     }.get(status)
     if not headline:
-        if ct == "INWARD_NOT_CREDITED":
+        # Name only what actually executed; a case type alone never means money moved.
+        if "RETURN_TO_REMITTER" in done:
             headline = f"Returned with {spare} to spare"
-        elif ct in ("P2P_NOT_CREDITED", "P2M_NOT_CONFIRMED"):
+        elif refunded:
             headline = f"Refunded with {spare} to spare" if not penalty_paid else f"Refunded late · {rs(penalty_paid)} paid"
-        elif ct == "AUTHORISED_FRAUD":
+        elif frozen:
             headline = f"{rs(frozen)} frozen before it moved"
-        else:
+        elif done:
             headline = "Actions executed"
+        else:
+            headline = "No money moved · review needed"
 
     calls = [s for s in run.calls]
     return {

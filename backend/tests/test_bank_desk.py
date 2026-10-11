@@ -181,4 +181,21 @@ class BankTests(unittest.IsolatedAsyncioTestCase):
         finally:
             config.OPERATOR_TOKEN=old
 
+    async def test_agents_get_the_exact_amount(self):
+        from engine import agents
+        run = bank.new_run(store.get_case('BK-001'),'rules')
+        brief = agents._case_brief(run)
+        self.assertIn('245000 paise', brief)
+        self.assertIn('₹2,450.00', brief)
+
+    async def test_headline_never_claims_an_unexecuted_refund(self):
+        from engine import orchestrator
+        run = bank.new_run(store.get_case('BK-001'),'rules')
+        run.facts['findings'] = {'case_type':'P2P_NOT_CREDITED','disputed_utr':run.case['utr'],'summary':'s','evidence':[]}
+        run.facts['validation'] = {'approved':[{'type':'MONITOR','utr':run.case['utr'],'amount_paise':0,'state':'scheduled'}],'rejected':[]}
+        o = orchestrator._outcome(run, {})
+        self.assertEqual(o['status'],'ACTIONED')
+        self.assertNotIn('Refunded', o['headline'])
+        self.assertEqual(o['headline'],'No money moved · review needed')
+
 if __name__=='__main__': unittest.main()

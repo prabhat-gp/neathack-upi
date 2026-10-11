@@ -66,7 +66,10 @@ A guardrailed execution engine validates and executes your plan; you cannot bypa
 def _case_brief(run: Run) -> str:
     c = run.case
     src = "Raised by the reconciliation sweep (no customer complaint yet)." if c["trigger"] == "sweep" else f"Customer complaint: \"{c['complaint']}\""
-    return f"Customer id: {c['customer_id']}\nUTR: {c['utr']}\n{src}"
+    amount = c.get("amount_paise")
+    money = (f"\nDisputed amount: ₹{amount / 100:,.2f} ({amount} paise), from the bank's records. Use this exact figure "
+             "for any refund, return or chargeback; the execution engine re-checks it.") if amount else ""
+    return f"Customer id: {c['customer_id']}\nUTR: {c['utr']}{money}\n{src}"
 
 
 # ─────────────────────────── Investigator ───────────────────────────
