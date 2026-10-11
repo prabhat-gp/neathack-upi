@@ -1,0 +1,126 @@
+{
+  "captured_at": "2026-10-11T08:34:58.701159+00:00",
+  "source": "https://34-239-21-63.sslip.io/api/bank/ledger",
+  "scope": "Completed real-model runs in the deployed ledger; excludes rules-verifier fixtures. Saved snapshot, not a live feed.",
+  "runs": [
+    {
+      "case_id": "BK-005",
+      "run_id": "run_a11570d0",
+      "finished_at": "2026-10-11T12:22:42+05:30",
+      "model": "gpt-6.1-sol",
+      "seconds": 101.5,
+      "status": "RESOLVED",
+      "case_type": "P2M_NOT_CONFIRMED",
+      "trace_url": "https://app.neatlogs.com/traces/b788e48e28e01d2d6b1c0aa55d765015?orgId=1345ee51-8f93-474e-9182-c2dcb843fac0&projectId=5211b14f-921d-43db-b24c-810704eaf7cf",
+      "governance": "passed",
+      "actions": [
+        {
+          "type": "REVERSE_DEBIT",
+          "state": "done",
+          "ref": "PST2F801C76EE",
+          "amount_paise": 435000
+        },
+        {
+          "type": "RAISE_CHARGEBACK",
+          "state": "done",
+          "ref": "UDIR67EB8812CE",
+          "amount_paise": 435000
+        }
+      ]
+    },
+    {
+      "case_id": "BK-004",
+      "run_id": "run_0eab4ab1",
+      "finished_at": "2026-10-11T12:20:57+05:30",
+      "model": "gpt-6.1-sol",
+      "seconds": 93.5,
+      "status": "RESOLVED",
+      "case_type": "P2P_NOT_CREDITED",
+      "trace_url": "https://app.neatlogs.com/traces/04fdfc8d838754fdafd814f205b87c3e?orgId=1345ee51-8f93-474e-9182-c2dcb843fac0&projectId=5211b14f-921d-43db-b24c-810704eaf7cf",
+      "governance": "passed",
+      "actions": [
+        {
+          "type": "REVERSE_DEBIT",
+          "state": "done",
+          "ref": "PST7B9B12F35D",
+          "amount_paise": 98000
+        },
+        {
+          "type": "RAISE_CHARGEBACK",
+          "state": "done",
+          "ref": "UDIR52AF1FD035",
+          "amount_paise": 98000
+        }
+      ]
+    },
+    {
+      "case_id": "BK-003",
+      "run_id": "run_2170272b",
+      "finished_at": "2026-10-11T10:46:41+05:30",
+      "model": "gpt-6.1-sol",
+      "seconds": 86.7,
+      "status": "RESOLVED",
+      "case_type": "INWARD_NOT_CREDITED",
+      "trace_url": "https://app.neatlogs.com/traces/ea3d6feb65e2e3b84cced25e625be82d?orgId=1345ee51-8f93-474e-9182-c2dcb843fac0&projectId=5211b14f-921d-43db-b24c-810704eaf7cf",
+      "governance": "passed",
+      "actions": [
+        {
+          "type": "RETURN_TO_REMITTER",
+          "state": "done",
+          "ref": "RETFAC4E927FC",
+          "amount_paise": 620000
+        }
+      ]
+    },
+    {
+      "case_id": "BK-002",
+      "run_id": "run_30f4e02f",
+      "finished_at": "2026-10-11T10:45:11+05:30",
+      "model": "gpt-6.1-sol",
+      "seconds": 91.4,
+      "status": "RESOLVED",
+      "case_type": "P2P_NOT_CREDITED",
+      "trace_url": "https://app.neatlogs.com/traces/b1e2618d2c6036d4eadb26b3884b5750?orgId=1345ee51-8f93-474e-9182-c2dcb843fac0&projectId=5211b14f-921d-43db-b24c-810704eaf7cf",
+      "governance": "passed",
+      "actions": [
+        {
+          "type": "REVERSE_DEBIT",
+          "state": "done",
+          "ref": "PST02EEC1C301",
+          "amount_paise": 180000
+        },
+        {
+          "type": "RAISE_CHARGEBACK",
+          "state": "done",
+          "ref": "UDIR106DBFD246",
+          "amount_paise": 180000
+        }
+      ]
+    },
+    {
+      "case_id": "BK-001",
+      "run_id": "run_a6c814a3",
+      "finished_at": "2026-10-11T10:41:10+05:30",
+      "model": "gpt-6.1-sol",
+      "seconds": 94.3,
+      "status": "RESOLVED",
+      "case_type": "P2P_NOT_CREDITED",
+      "trace_url": "https://app.neatlogs.com/traces/f18a02175af7eafa4ac1b07be74c1d2f?orgId=1345ee51-8f93-474e-9182-c2dcb843fac0&projectId=5211b14f-921d-43db-b24c-810704eaf7cf",
+      "governance": "passed",
+      "actions": [
+        {
+          "type": "REVERSE_DEBIT",
+          "state": "done",
+          "ref": "PSTAF22D7CE39",
+          "amount_paise": 245000
+        },
+        {
+          "type": "RAISE_CHARGEBACK",
+          "state": "done",
+          "ref": "UDIRC3108A2C42",
+          "amount_paise": 245000
+        }
+      ]
+    }
+  ]
+}

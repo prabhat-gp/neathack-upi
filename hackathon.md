@@ -100,3 +100,15 @@ Requirements from neatlogs.com/hackathon. Submit Oct 12, 7:00–11:55 PM IST on 
 - [ ] neatlogs traces, including a before/after improvement comparison
 - [ ] A run where an action failed and what the agent did next, written up
 - [ ] Build-in-public posts tagged #neatHack
+
+## Sponsor evidence audit — 11 October 2026
+
+Homepage and evidence page now link all four sponsors, including five completed deployed
+`gpt-6.1-sol` runs captured on 11 October (86.7–101.5 seconds; rules fixtures excluded).
+The saved run snapshot is `frontend/public/proof/data/deployed-runs.json`.
+cfo.ai's base/downside/upside table URLs were checked through authenticated readback;
+both public cfo.ai and Crustdata JSON files matched the saved evidence. Their 10 October
+captures are labelled separately from payment runs. Entire checkpoint
+`01M4J7A2GM3XCY6WDZW1VCH61D` includes the actual Codex audit session.
+
+Verification: 27 backend unit tests passed; frontend production build passed.
