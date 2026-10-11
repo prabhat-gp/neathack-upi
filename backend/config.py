@@ -53,6 +53,10 @@ AUTOPILOT_INTERVAL_SEC = int(os.environ.get("AUTOPILOT_INTERVAL_SEC", "120"))
 AUTOPILOT_MAX_COMPLAINTS = int(os.environ.get("AUTOPILOT_MAX_COMPLAINTS", "10"))
 # Bank desk: one "Run agents" press works this many ledger cases, then stops (protects the model plan).
 BANK_BATCH_SIZE = int(os.environ.get("BANK_BATCH_SIZE", "3"))
+# Public demo guards. Run agents spends the model plan, so cap batches across all visitors.
+BANK_BATCHES_PER_HOUR = int(os.environ.get("BANK_BATCHES_PER_HOUR", "2"))
+# Ledger reset is operator-only when set (send it as the X-Operator-Token header).
+OPERATOR_TOKEN = os.environ.get("OPERATOR_TOKEN", "")
 
 AUTO_APPROVE_LIMIT_PAISE = int(os.environ.get("AUTO_APPROVE_LIMIT_PAISE", str(10_000_00)))
 NEATLOGS_API_KEY = os.environ.get("NEATLOGS_API_KEY", "")

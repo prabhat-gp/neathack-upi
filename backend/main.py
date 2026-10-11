@@ -57,7 +57,8 @@ def metrics():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    # Lets the operator confirm the deployed agents run on Codex, not the rules fallback.
+    return {"status": "ok", "brain": config.brain(), "model": config.model_name(), "codex_signed_in": config.codex_signed_in()}
 
 
 @app.get("/api/meta")

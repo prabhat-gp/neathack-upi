@@ -38,10 +38,13 @@ prabhat-gp (github.com/prabhat-gp)
   usage predictable; `POST /api/bank/reset` restores the fresh ledger.
 - Home page: mission, RBI deadlines and a compensation illustration, the agent team, sponsor thanks, real sponsor
   screenshots, then build evidence.
-- **Checks that ran:** 23 backend tests pass (ledger cases, policy before execution, approval restore, duplicate and
+- **Checks that ran:** 23 backend tests pass at this point (ledger cases, policy before execution, approval restore, duplicate and
   changed-evidence protection, queue pause, 3-case batch, reset, Crustdata). Real Codex sandbox runs with all four
   agents: outward refund 62.1s (11 source calls), inward return 64.1s (7 source calls). Console checked in Chrome at
   1920, 1440, 1280, 1024 and 390 px: no horizontal overflow, no text under 11px, no page errors.
+
+**Deploy prep (11 October):** one-EC2 setup with Caddy + sslip.io HTTPS, apps bound to localhost, internal routes
+blocked, operator-only reset, hourly cap on Run agents, model status in `/health`. 25 backend tests pass.
 
 ## Build history
 

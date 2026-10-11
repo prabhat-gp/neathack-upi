@@ -29,6 +29,7 @@ class BankTests(unittest.IsolatedAsyncioTestCase):
         bank._init_lock = asyncio.Lock()
         bank._work_lock = asyncio.Lock()
         bank.STATE.update(enabled=False, active_case_id=None, started_at=None)
+        bank._batch_starts.clear()
         supervisor.RUNS.clear()
         self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app),base_url='http://test')
         self.old_client = parties._client
@@ -155,5 +156,29 @@ class BankTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(store.get_case('BK-001')['status'],'QUEUED')
         self.assertEqual(body['counts']['queued'],20)
         self.assertFalse(body['queue']['enabled'])
+
+    async def test_run_agents_is_capped_per_hour(self):
+        import config
+        old=config.BANK_BATCHES_PER_HOUR
+        config.BANK_BATCHES_PER_HOUR=1
+        try:
+            self.assertEqual((await self.client.post('/api/bank/queue',json={'on':True})).status_code,200)
+            await self.client.post('/api/bank/queue',json={'on':False})
+            r=await self.client.post('/api/bank/queue',json={'on':True})
+            self.assertEqual(r.status_code,429)
+            self.assertFalse(bank.STATE['enabled'])
+        finally:
+            config.BANK_BATCHES_PER_HOUR=old
+
+    async def test_reset_needs_operator_token_when_set(self):
+        import config
+        old=config.OPERATOR_TOKEN
+        config.OPERATOR_TOKEN='op-secret'
+        try:
+            self.assertEqual((await self.client.post('/api/bank/reset')).status_code,403)
+            self.assertEqual((await self.client.post('/api/bank/reset',headers={'X-Operator-Token':'wrong'})).status_code,403)
+            self.assertEqual((await self.client.post('/api/bank/reset',headers={'X-Operator-Token':'op-secret'})).status_code,200)
+        finally:
+            config.OPERATOR_TOKEN=old
 
 if __name__=='__main__': unittest.main()

@@ -3,7 +3,8 @@ import asyncio
 import json
 import logging
 import time
-from fastapi import APIRouter, HTTPException
+import hmac
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 import config
 from sandbox import db
@@ -18,6 +19,7 @@ STATE = {'enabled': False, 'active_case_id': None, 'started_at': None, 'batch_le
 _init_lock = asyncio.Lock()
 _work_lock = asyncio.Lock()
 _initialized = False
+_batch_starts: list[float] = []  # monotonic start times of recent batches, all visitors
 
 
 def cases():
@@ -126,6 +128,14 @@ class QueueRequest(BaseModel):
 @router.post('/queue')
 async def queue(req: QueueRequest):
     await ensure_seed()
+    if req.on and not STATE['enabled']:
+        now = time.monotonic()
+        _batch_starts[:] = [t for t in _batch_starts if now - t < 3600]
+        if len(_batch_starts) >= config.BANK_BATCHES_PER_HOUR:
+            wait_min = max(1, round((3600 - (now - _batch_starts[0])) / 60))
+            raise HTTPException(429, f'The agents have run {config.BANK_BATCHES_PER_HOUR} batches this hour. '
+                                     f'Try again in about {wait_min} min, or open a completed case to see their work.')
+        _batch_starts.append(now)
     STATE['enabled'] = req.on
     # Each press works a small batch, then the queue switches itself off.
     STATE['batch_left'] = config.BANK_BATCH_SIZE if req.on else 0
@@ -133,9 +143,11 @@ async def queue(req: QueueRequest):
 
 
 @router.post('/reset')
-async def reset_ledger():
+async def reset_ledger(x_operator_token: str = Header(default='')):
     """Put every ledger transaction back to queued: fresh sandbox records, no runs."""
     global _initialized
+    if config.OPERATOR_TOKEN and not hmac.compare_digest(x_operator_token, config.OPERATOR_TOKEN):
+        raise HTTPException(403, 'Only the operator can reset the ledger')
     if _work_lock.locked():
         raise HTTPException(409, 'Wait for the active case to finish before resetting the ledger')
     STATE.update(enabled=False, active_case_id=None, started_at=None, batch_left=0)

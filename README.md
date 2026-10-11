@@ -71,6 +71,19 @@ Agents run on the **OpenAI Codex CLI signed in with the team's ChatGPT plan** (`
 Development model: `gpt-6-luna`, low effort. Without a Codex login the desk uses a rules engine and labels it
 "Rules verification · no LLM". All banks, accounts and money movement are sandbox data.
 
+## Deploy (one EC2 instance)
+
+`deploy/ec2-setup.sh` sets up an Ubuntu 24.04 t3.small from `main`: swap, Node, Python, Codex CLI, Caddy, two
+systemd services and HTTPS at `https://<elastic-ip-with-dashes>.sslip.io`. No domain needed.
+
+- Only Caddy is public (ports 80/443). The frontend (3000) and backend (8000) listen on 127.0.0.1.
+- Caddy blocks `/sandbox`, `/agent-mcp` and the API docs; agents reach them internally.
+- The operator signs Codex in once on the server (`codex login --device-auth`). Visitors never see a login; agents
+  run on that session. `GET /health` reports `codex_signed_in` and the model.
+- Public guards: Run agents is capped at `BANK_BATCHES_PER_HOUR` (2) across all visitors; ledger reset needs the
+  `X-Operator-Token` header (`OPERATOR_TOKEN`, generated on first deploy).
+- A fresh server `.env` uses `gpt-6.1-sol`, medium effort.
+
 ## Code map
 
 | Area | Location |
