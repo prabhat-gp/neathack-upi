@@ -18,17 +18,15 @@ if ! swapon --show | grep -q /swapfile; then
 fi
 
 sudo apt-get update -y
-sudo apt-get install -y git python3-venv python3-pip curl debian-keyring debian-archive-keyring apt-transport-https gnupg
+sudo apt-get install -y git python3-venv python3-pip curl
 if ! command -v node >/dev/null; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
   sudo apt-get install -y nodejs
 fi
 command -v codex >/dev/null || sudo npm install -g @openai/codex
-if ! command -v caddy >/dev/null; then
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
-  sudo apt-get update -y && sudo apt-get install -y caddy
-fi
+# Caddy from Ubuntu's own archive (Caddy's Cloudsmith repo answered 402 Payment Required).
+command -v caddy >/dev/null || sudo apt-get install -y caddy
+command -v caddy >/dev/null || { echo "Caddy failed to install" >&2; exit 1; }
 
 [ -d "$APP" ] || git clone -b "$BRANCH" https://github.com/prabhat-gp/neathack-upi.git "$APP"
 cd "$APP" && git fetch origin && git checkout "$BRANCH" && git pull --ff-only origin "$BRANCH"
