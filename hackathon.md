@@ -57,6 +57,10 @@ the headline wrongly said "Refunded" while only monitoring was scheduled. Fixed:
 amount from the bank's records, and headlines name only executed actions (2 new tests, 27 pass). Re-run on the live
 server: T01 refunded ₹2,450 + UDIR chargeback, governance passed, **94.3s**, queue stopped after one case.
 
+**Live agent updates arrived all at once:** Caddy compressed the event stream (zstd), and the compressor held events
+back until a case finished. Reproduced in Chrome on the live site with a 1-event-per-second test stream: compressed,
+all events arrived together at 8.7s; uncompressed, one per second. Compression now applies to pages only, not `/api`.
+
 ## Build history
 
 - **10 Oct, morning** — sandbox counterparties with real state changes; orchestrator + Investigator / Policy /

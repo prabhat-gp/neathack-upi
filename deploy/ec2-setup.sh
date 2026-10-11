@@ -84,7 +84,6 @@ EOF
 # Caddy: HTTPS for the site and /api; internal endpoints (sandbox money movement, agent tools, API docs) stay private.
 sudo tee /etc/caddy/Caddyfile >/dev/null <<EOF
 $HOST {
-	encode zstd gzip
 	@internal path /sandbox /sandbox/* /agent-mcp /agent-mcp/* /docs /docs/* /redoc /openapi.json
 	handle @internal {
 		respond 404
@@ -101,6 +100,8 @@ $HOST {
 		reverse_proxy 127.0.0.1:8000
 	}
 	handle {
+		# Compress pages only. Compressing /api would buffer the live agent event stream until a case finishes.
+		encode zstd gzip
 		reverse_proxy 127.0.0.1:3000
 	}
 }
