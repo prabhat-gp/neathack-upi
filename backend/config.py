@@ -51,6 +51,8 @@ MCP_API_TOKEN = os.environ.get("MCP_API_TOKEN", "")
 # Autopilot: how often a simulated customer writes in, and the hard cap per session (each case costs model usage)
 AUTOPILOT_INTERVAL_SEC = int(os.environ.get("AUTOPILOT_INTERVAL_SEC", "120"))
 AUTOPILOT_MAX_COMPLAINTS = int(os.environ.get("AUTOPILOT_MAX_COMPLAINTS", "10"))
+# Bank desk: one "Run agents" press works this many ledger cases, then stops (protects the model plan).
+BANK_BATCH_SIZE = int(os.environ.get("BANK_BATCH_SIZE", "3"))
 
 AUTO_APPROVE_LIMIT_PAISE = int(os.environ.get("AUTO_APPROVE_LIMIT_PAISE", str(10_000_00)))
 NEATLOGS_API_KEY = os.environ.get("NEATLOGS_API_KEY", "")

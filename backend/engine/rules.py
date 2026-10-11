@@ -9,6 +9,16 @@ TAT_CIRCULAR = "RBI/2019-20/67 · DPSS.CO.PD No.629/02.01.014/2019-20 (20 Sep 20
 COMPENSATION_PER_DAY_PAISE = 100_00
 
 RULEBOOK = {
+    "UNCLEAR": {
+        "name": "Conflicting payment records", "source": "Bank reconciliation control · RBI TAT applicability pending evidence",
+        "text": "Do not infer settlement from conflicting sources. Establish the actual failure before calculating a remedy.",
+        "tat_days": None, "remedy": "Hold financial action and reconcile NPCI with the beneficiary ledger.",
+    },
+    "ALREADY_RESOLVED": {
+        "name": "Previously reversed payment", "source": "Core banking reversal and NPCI status evidence",
+        "text": "Do not issue a duplicate reversal. Review any outstanding compensation separately.",
+        "tat_days": None, "remedy": "Close duplicate exception with the original reversal reference.",
+    },
     "P2P_NOT_CREDITED": {
         "name": "UPI fund transfer — account debited, beneficiary not credited",
         "source": f"{TAT_CIRCULAR}, row 4(a)",

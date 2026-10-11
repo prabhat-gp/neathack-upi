@@ -21,7 +21,7 @@ const mono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'DisputePro — the UPI dispute resolution squad',
+  title: 'DisputePro',
   description:
     'AI agents that find, investigate and resolve UPI exceptions across core banking, NPCI and counterparty banks before RBI deadlines.',
 }

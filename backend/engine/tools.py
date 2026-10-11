@@ -34,7 +34,7 @@ def _obj(props: dict, required: list[str]) -> dict:
 UTR = {"type": "string", "description": "12-digit UPI transaction reference"}
 CUST = {"type": "string", "description": "Bank customer id"}
 VPA = {"type": "string", "description": "UPI virtual payment address"}
-CASE_TYPES = list(rules.RULEBOOK) + ["ALREADY_RESOLVED", "UNCLEAR"]
+CASE_TYPES = list(rules.RULEBOOK)
 
 
 def _ev(run: Run) -> dict:
@@ -259,6 +259,16 @@ POLICY_TOOLS = [
 
 async def compute_risk_score(run, node, a):
     ev = _ev(run)
+    if run.facts.get("findings", {}).get("case_type") == "INWARD_NOT_CREDITED":
+        inward = ev.get("inward", {}).get(a["utr"])
+        if not inward:
+            inward = await get_inward_credit(run, node, {"utr": a["utr"]})
+        valid = inward["credit_status"] == "FAILED" and (inward.get("suspense") or {}).get("status") == "OPEN"
+        result = {"score": 0 if valid else 100, "band": "LOW" if valid else "HIGH", "factors": [],
+                  "scope": "Return of bank-held suspense to the original remitter; fresh execution checks still required"}
+        run.facts["risk"] = result
+        await run.step(node, "check", "Inward return risk", result["scope"], status="ok" if valid else "warn", pause=0)
+        return result
     if a["utr"] not in ev.get("cbs_txn", {}):
         await get_bank_transaction(run, node, {"utr": a["utr"]})
     txn = ev["cbs_txn"][a["utr"]]

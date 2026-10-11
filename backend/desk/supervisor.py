@@ -108,6 +108,8 @@ def _apply(run: Run, case_id: str, o: dict) -> None:
                       utr=run.case.get("utr") or c["utr"])
     if status != "NEEDS_INFO":
         ledger.record(run, o, config.model_name())
+    if run.case.get("bank_ledger"):
+        return
     ch = "SMS" if c["channel"] == "RECON" else c["channel"]
     msg = (o.get("customer_message") or "").strip()
     if status == "NEEDS_YOU":
@@ -154,7 +156,7 @@ async def loop() -> None:
             if free > 0:
                 # Customer complaints start at once; recon exceptions wait for autopilot or a person.
                 kinds = ("UDIR", "CHAT", "RECON") if STATE["autopilot"] else ("UDIR", "CHAT")
-                queued = [c for c in store.list_cases() if c["status"] == "QUEUED" and c["channel"] in kinds]
+                queued = [c for c in store.list_cases() if not c["id"].startswith("BK-") and c["status"] == "QUEUED" and c["channel"] in kinds]
                 queued.sort(key=lambda c: (c.get("deadline_at") or "9999", c["created_at"]))
                 for c in queued[:free]:
                     start(c["id"])

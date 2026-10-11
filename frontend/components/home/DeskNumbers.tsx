@@ -38,7 +38,7 @@ export default function DeskNumbers() {
           </div>
         ))}
       </div>
-      <p className="mx-auto max-w-7xl px-6 pb-5 text-[11px] text-white/30">Live from the desk’s run ledger · sandbox bank</p>
+      <p className="mx-auto max-w-7xl px-6 pb-5 text-xs text-white/30">Live from the desk’s run ledger · sandbox bank</p>
     </div>
   )
 }

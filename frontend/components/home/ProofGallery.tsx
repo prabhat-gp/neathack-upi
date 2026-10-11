@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 
 export type ProofImage = { src: string; title: string; caption: string }
 
 export default function ProofGallery({ images }: { images: ProofImage[] }) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   const [selected, setSelected] = useState(0)
   const current = images[selected]
   return (
@@ -22,10 +23,10 @@ export default function ProofGallery({ images }: { images: ProofImage[] }) {
           </button>
         ))}
       </div>
-      <dialog ref={dialog} className="home-lightbox" aria-labelledby="proof-title" onClick={(event) => { if (event.target === event.currentTarget) dialog.current?.close() }}>
+      <dialog ref={dialog} className="home-lightbox" aria-labelledby={titleId} onClick={(event) => { if (event.target === event.currentTarget) dialog.current?.close() }}>
         <div className="home-lightbox-inner">
           <div className="flex items-center justify-between gap-4 p-4 sm:px-6">
-            <div><p className="text-xs text-slate-400">Project evidence · {selected + 1} / {images.length}</p><h2 id="proof-title" className="mt-1 text-sm font-semibold">{current.title}</h2></div>
+            <div><p className="text-xs text-slate-400">Project evidence · {selected + 1} / {images.length}</p><h2 id={titleId} className="mt-1 text-sm font-semibold">{current.title}</h2></div>
             <button type="button" autoFocus onClick={() => dialog.current?.close()} className="home-lightbox-control" aria-label="Close screenshot">✕</button>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}

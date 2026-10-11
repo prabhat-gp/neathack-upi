@@ -3,13 +3,12 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '@/components/meta'
 
-// Replay of a real Codex run (case DP-2944, Hindi complaint via the UPI app). Text is abridged and translated into English from that run.
+// Clearly labelled illustration of the bank-ledger workflow; not a live or measured run.
 const STEPS = [
-  { id: 'intake', name: 'Intake', did: 'Found the ₹2,000 payment to Anita' },
-  { id: 'investigator', name: 'Investigator', did: 'Money left the account but did not reach Anita' },
-  { id: 'policy', name: 'Policy', did: 'Checked the refund deadline and compensation' },
-  { id: 'resolver', name: 'Resolver', did: 'Recommended a refund and recovery from the other bank' },
-  { id: 'executor', name: 'Execution engine', did: 'Checked again and confirmed the refund' },
+  { id: 'orchestrator', name: 'Master agent', did: 'Picks the next failed payment from the ledger' },
+  { id: 'investigator', name: 'Investigator', did: 'Reconciles remitter, NPCI and receiving bank records' },
+  { id: 'policy', name: 'RBI Policy', did: 'Checks the deadline, bank authority and compensation' },
+  { id: 'resolver', name: 'Resolver', did: 'Resolves within limits or routes to human review' },
 ]
 
 export default function SquadHero() {
@@ -27,18 +26,18 @@ export default function SquadHero() {
 
   return (
     <div className="relative rounded-2xl border border-white/10 bg-[#0d1830]/80 p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,.6)] backdrop-blur sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[.16em] text-white/40">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[.16em] text-white/40">
         <span className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Recorded case · DP-2944
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Illustrated workflow · T01
         </span>
-        <span className="font-mono normal-case tracking-normal">gpt-6-luna via Codex</span>
+        <span className="font-mono normal-case tracking-normal">Live model shown in desk</span>
       </div>
 
       <div className="mt-5 rounded-xl border border-white/10 bg-white/[.04] p-4">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.14em] text-sky-300">
-          <Icon name="complaint" className="h-3.5 w-3.5" /> Customer · UPI app
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.14em] text-sky-300">
+          <Icon name="complaint" className="h-3.5 w-3.5" /> Bank exception ledger
         </div>
-        <p className="mt-2 text-[15px] leading-relaxed text-white/90">“₹2,000 left my account, but Anita hasn’t received it.”</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-white/90">₹2,450 debited · beneficiary credit missing</p>
       </div>
 
       <ol className="mt-4 space-y-1.5">
@@ -51,7 +50,7 @@ export default function SquadHero() {
                 <Icon name={state === 'done' ? 'check' : s.id} className="h-3.5 w-3.5" />
               </span>
               <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-white">{s.name}{state === 'running' && <span className="ml-2 text-[11px] font-normal text-blue-300">replay</span>}</p>
+                <p className="text-[13px] font-semibold text-white">{s.name}{state === 'running' && <span className="ml-2 text-xs font-normal text-blue-300">illustration</span>}</p>
                 <p className="text-[12px] leading-5 text-white/50">{s.did}</p>
               </div>
             </li>
@@ -61,10 +60,10 @@ export default function SquadHero() {
 
       <div className={`mt-4 rounded-xl border p-4 transition-all duration-700 ${done ? 'border-emerald-400/30 bg-emerald-400/10 opacity-100' : 'border-white/5 bg-white/[.02] opacity-40'}`}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="font-display text-2xl font-semibold tracking-tight text-white">₹2,000 refunded</p>
-          <p className="text-sm font-medium text-emerald-300">9h 29m before the deadline</p>
+          <p className="font-display text-2xl font-semibold tracking-tight text-white">Evidence → decision</p>
+          <p className="text-sm font-medium text-emerald-300">Mandatory policy gate</p>
         </div>
-        <p className="mt-1 text-[12px] text-white/55">Illustrated replay · original run 82 s · 11 system calls · ₹0 penalty</p>
+        <p className="mt-1 text-[12px] text-white/55">Actual run time and model activity are visible in the bank desk</p>
       </div>
     </div>
   )

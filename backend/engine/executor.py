@@ -20,6 +20,8 @@ N = "executor"
 
 
 async def validate(run: Run, plan: dict) -> dict:
+    if run.case.get("bank_ledger") and run.facts.get("governance", {}).get("status") != "passed":
+        raise ValueError("Mandatory RBI governance gate has not passed")
     await run.node(N, "running", activity="Re-verifying evidence and monetary amounts", pause=0)
     f = run.facts["findings"]
     ct, utr = f["case_type"], f["disputed_utr"]
@@ -33,6 +35,11 @@ async def validate(run: Run, plan: dict) -> dict:
     else:
         led = await call(run, N, "cbs", "GET", f"/transactions/{utr}", title="Re-verify ledger in core banking",
                          summarize=lambda d: (f"{d['status']} · {len(d['related_postings'])} prior posting(s)", "ok"))
+    if run.case.get("bank_ledger") and not inward:
+        credit = await call(run, N, "bene", "GET", f"/credits/{utr}", title="Re-verify beneficiary credit before action",
+                            summarize=lambda d: (d["status"], "ok"))
+        if ct in OUTWARD_TAT and (credit.get("status") == "CREDITED" or st.get("tcc") or st.get("credit_leg") == "SUCCESS"):
+            raise ValueError("Credit evidence changed or conflicts with the proposed refund. Manual reconciliation is required.")
     pos = rules.tat_position(ct, st["initiated_at"], st.get("reversal_at"), datetime.now(rules.IST)) if rules.RULEBOOK.get(ct, {}).get("tat_days") else None
     run.facts.setdefault("tat", {})[utr] = pos or run.facts.get("tat", {}).get(utr)
     already = {p["type"] for p in led.get("related_postings", [])}
@@ -108,6 +115,12 @@ async def validate(run: Run, plan: dict) -> dict:
 
 
 async def execute(run: Run, actions: list[dict], node: str = N) -> list[dict]:
+    if run.case.get("bank_ledger"):
+        if run.facts.get("governance", {}).get("status") != "passed":
+            raise ValueError("Financial action blocked by governance")
+        validation = run.facts.get("validation") or {}
+        if actions != validation.get("approved") or (validation.get("needs_human") and not run.facts.get("approved_by")):
+            raise ValueError("Financial action requires a validated, authorized plan")
     await run.node(N, "running", activity="Executing validated actions", pause=0)
     f = run.facts["findings"]
     ev = run.facts["evidence"]

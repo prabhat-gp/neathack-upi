@@ -92,6 +92,12 @@ async def _resolve_and_execute(run: Run, instructions: str) -> dict:
     await run.edge("resolver>executor", "taken")
     v = await executor.validate(run, plan)
     run.facts["validation"] = v
+    if run.case.get("bank_ledger") and (v["rejected"] or not v["approved"]):
+        run.status = "ESCALATED"
+        for a in v["approved"]:
+            a["state"] = "cancelled"
+        await run.node("resolver", "done", activity="Plan incomplete or ineligible · manual reconciliation required", pause=0)
+        return {"status": "ESCALATED", "rejected": v["rejected"]}
     if v["needs_human"]:
         run.pending_plan = v
         await run.node("executor", "waiting", activity="Guardrails require human approval", pause=0)
@@ -296,6 +302,18 @@ def _proof_message(run: Run, f: dict) -> str:
 
 async def _finish(run: Run, closing: dict, via: str | None = None):
     outcome = _outcome(run, closing)
+    if run.case.get("bank_ledger"):
+        outcome.update(governance=run.facts.get("governance"), chain=run.facts.get("chain"), trace_url=run.trace_url)
+        outcome["customer_message"] = ""
+        if outcome["status"] == "RESOLVED":
+            returned = sum(a["amount_paise"] for a in outcome["actions"] if a["type"] == "RETURN_TO_REMITTER" and a["state"] == "done")
+            outcome["summary"] = (f"Returned {rs(returned)} through NPCI and cleared our suspense entry. The receiving remitter bank handles its account credit."
+                                  if returned else f"Posted a {rs(outcome['refunded_paise'])} refund to our account ledger. Confirmed action references are recorded below.")
+            if outcome["penalty_paid_paise"]:
+                outcome["summary"] += f" Paid {rs(outcome['penalty_paid_paise'])} in eligible TAT compensation."
+        elif outcome["status"] == "AWAITING_APPROVAL":
+            outcome["summary"] = "The validated plan is held for a bank analyst. Proposed actions have not executed. Approval will recheck current source evidence and amounts."
+
     if outcome["status"] == "AWAITING_APPROVAL":
         await run.edge("executor>human", "active", pause=0.6)
         await run.edge("executor>human", "taken")

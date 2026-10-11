@@ -123,6 +123,8 @@ def desk_case(case_id: str):
 
 @router.post("/api/desk/cases/{case_id}/start")
 async def desk_start(case_id: str, request: Request):
+    if case_id.startswith("BK-"):
+        raise HTTPException(409, "Bank ledger cases must use the governed sequential bank queue")
     c = store.get_case(case_id)
     if not c:
         raise HTTPException(404, "Unknown case")
@@ -199,6 +201,8 @@ async def run_decision(run_id: str, body: Decision):
     run = supervisor.RUNS.get(run_id)
     if not run:
         raise HTTPException(404, "Run not found")
+    if run.case.get("bank_ledger"):
+        raise HTTPException(409, "Use the bank ledger decision endpoint for this approval")
     if run.status != "AWAITING_APPROVAL":
         raise HTTPException(409, f"Run is {run.status}, not awaiting approval")
     if not body.approve and not body.reason.strip():

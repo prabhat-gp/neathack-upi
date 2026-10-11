@@ -125,6 +125,10 @@ async def _investigator_rules(run: Run) -> dict:
         return {"case_type": "ALREADY_RESOLVED", "disputed_utr": utr, "evidence": ev, "claim_matches_evidence": False,
                 "summary": "The customer has already been refunded for this UTR. Nothing outstanding."}
 
+    if run.case.get("bank_ledger") and not isinstance(cr, Exception) and (st.get("tcc") or st["credit_leg"] == "SUCCESS") and cr["status"] == "NOT_CREDITED":
+        return {"case_type": "UNCLEAR", "disputed_utr": utr, "evidence": ev, "claim_matches_evidence": True,
+                "summary": "NPCI confirms credit but the beneficiary ledger says not credited. Reconcile the conflicting records before moving funds."}
+
     credited = st["credit_leg"] == "SUCCESS" or bool(st["tcc"])
     if txn["kind"] == "P2M":
         await run.step(n, "think", "Merchant payment", "Ask the acquirer which order this UTR paid, and scan for a second attempt.", pause=0.5)
@@ -172,6 +176,8 @@ async def policy(run: Run, instructions: str) -> dict:
         task = f"{_case_brief(run)}\n\nInvestigator findings:\n{json.dumps(f, indent=1)}\n\nOrchestrator's instruction: {instructions}"
 
         def check(inp):
+            if inp["case_type"] != f["case_type"]:
+                return "The ruling must use the investigator's established case type."
             pos = run.facts.get("tat", {}).get(f["disputed_utr"])
             if rules.RULEBOOK.get(inp["case_type"], {}).get("tat_days") and not pos:
                 return "Call compute_tat_position before ruling on a deadline case."
@@ -227,7 +233,10 @@ async def resolver(run: Run, instructions: str) -> dict:
         def check(inp):
             return None if "risk" in run.facts else "Call compute_risk_score before submitting a plan."
 
-        plan = await run_agent(run, "resolver", RESOLVER_SYSTEM, T.RESOLVER_TOOLS, task, "submit_resolution_plan", validate=check)
+        system = RESOLVER_SYSTEM
+        if run.case.get("bank_ledger"):
+            system = system[:system.index("Message:")] + "Write customer_message as an internal case-file note in plain English. Do not address or contact a customer. Call submit_resolution_plan once. A deterministic executor validates authority, evidence, amounts and approval limits."
+        plan = await run_agent(run, "resolver", system, T.RESOLVER_TOOLS, task, "submit_resolution_plan", validate=check)
     else:
         plan = await _resolver_rules(run, f, r)
     await run.step("resolver", "plan", "Plan", " · ".join(

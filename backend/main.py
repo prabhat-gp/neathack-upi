@@ -17,7 +17,7 @@ import agent_mcp
 import config
 import ledger
 import mcp_server
-from desk import supervisor
+from desk import supervisor, bank
 from desk.routes import router as desk_router
 from engine.parties import PARTIES
 from sandbox import db
@@ -30,17 +30,21 @@ _mcp_app = mcp_server.http_app()
 async def lifespan(_app):
     # An interrupted process cannot safely resume uncheckpointed financial work.
     # Preserve its evidence and route it to a person instead of silently rerunning it.
-    db.ex("UPDATE desk_cases SET status='ESCALATED', headline='Server restarted — review recorded actions before continuing' WHERE status IN ('WORKING','NEEDS_YOU')")
+    db.ex("UPDATE desk_cases SET status='ESCALATED', headline='Server restarted — review recorded actions before continuing' WHERE status='WORKING' OR (status='NEEDS_YOU' AND id NOT LIKE 'BK-%')")
+    bank_loop = asyncio.create_task(bank.loop())
     loop = asyncio.create_task(supervisor.loop())  # works the case queue on its own
     async with mcp_server.server.session_manager.run():
         yield
     loop.cancel()
+    bank_loop.cancel()
+    await asyncio.gather(loop, bank_loop, return_exceptions=True)
 
 
 app = FastAPI(title="DisputePro", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(sandbox_router)
 app.include_router(desk_router)
+app.include_router(bank.router)
 app.include_router(agent_mcp.router)  # per-agent tool endpoints the Codex agents connect to
 app.mount("/mcp", _mcp_app)  # DisputePro MCP server (cfo.ai, Claude Code)
 
