@@ -46,6 +46,12 @@ prabhat-gp (github.com/prabhat-gp)
 **Deploy prep (11 October):** one-EC2 setup with Caddy + sslip.io HTTPS, apps bound to localhost, internal routes
 blocked, operator-only reset, hourly cap on Run agents, model status in `/health`. 25 backend tests pass.
 
+**Deployed (11 October):** one t3.small in Hackathon_VPC (Elastic IP 34.239.21.63), Caddy HTTPS via sslip.io,
+apps on localhost only, `/sandbox`, `/agent-mcp` and API docs blocked, agents on `gpt-6.1-sol` (medium) signed in with
+the team's ChatGPT plan. Checked: HTTPS + HTTP→HTTPS redirect, blocked routes return 404, ports 3000/8000 closed,
+`/health` reports `codex_signed_in: true`, desk loads and streams recorded run events. Caddy is installed from Ubuntu's
+archive because its own package repository returned 402.
+
 ## Build history
 
 - **10 Oct, morning** — sandbox counterparties with real state changes; orchestrator + Investigator / Policy /
@@ -64,7 +70,7 @@ blocked, operator-only reset, hourly cap on Run agents, model status in `/health
 
 Local: home `http://localhost:3001`, bank desk `http://localhost:3001/console`, backend `http://localhost:8000`.
 Path: open the desk → Run agents → watch T01–T03 → open T21 or T22 → approve or send to investigation.
-Public URL and video: pending (deploy on 12 Oct).
+**Live:** https://34-239-21-63.sslip.io (bank desk at `/console`). Video: pending.
 
 ## Known limits
 

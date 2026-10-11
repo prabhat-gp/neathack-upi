@@ -57,7 +57,8 @@ that actually ran.
 
 ## Open work
 
-1. Deploy Oct 12: EC2 + Caddy/sslip HTTPS, `codex login --device-auth` on the server, model switch.
+1. Deployed: https://34-239-21-63.sslip.io (EC2 `i-091d89181bf90fc15`, key `~/Downloads/disputepro.pem`, user `ubuntu`).
+   Update: re-run `deploy/ec2-setup.sh` on the server (pulls `main`). Time one real gpt-6.1-sol batch before any speed claim.
 2. neatlogs before/after improvement evidence; failure-recovery write-up.
 3. Demo video, build-in-public posts, submission checklist in `hackathon.md`.
 
