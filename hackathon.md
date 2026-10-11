@@ -52,6 +52,11 @@ the team's ChatGPT plan. Checked: HTTPS + HTTP→HTTPS redirect, blocked routes 
 `/health` reports `codex_signed_in: true`, desk loads and streams recorded run events. Caddy is installed from Ubuntu's
 archive because its own package repository returned 402.
 
+**First live run (gpt-6.1-sol, medium):** the Resolver held T01 because no tool gave it the exact debit amount, and
+the headline wrongly said "Refunded" while only monitoring was scheduled. Fixed: every agent's brief carries the
+amount from the bank's records, and headlines name only executed actions (2 new tests, 27 pass). Re-run on the live
+server: T01 refunded ₹2,450 + UDIR chargeback, governance passed, **94.3s**, queue stopped after one case.
+
 ## Build history
 
 - **10 Oct, morning** — sandbox counterparties with real state changes; orchestrator + Investigator / Policy /
