@@ -56,9 +56,13 @@ def metrics():
 
 
 @app.get("/health")
-def health():
+async def health():
     # Lets the operator confirm the deployed agents run on Codex, not the rules fallback.
-    return {"status": "ok", "brain": config.brain(), "model": config.model_name(), "codex_signed_in": config.codex_signed_in()}
+    out = {"status": "ok", "brain": config.brain(), "model": config.model_name(), "codex_signed_in": config.codex_signed_in()}
+    if config.brain() == "litellm":
+        out["litellm_spend_usd"] = await bank.litellm_spend()
+        out["litellm_spend_ceiling_usd"] = config.LITELLM_SPEND_CEILING
+    return out
 
 
 @app.get("/api/meta")
