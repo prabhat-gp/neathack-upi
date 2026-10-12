@@ -42,8 +42,9 @@ export default function BankDesk() {
   const [now, setNow] = useState(Date.now())
   const [reconnect, setReconnect] = useState(0)
   useEffect(() => { document.title = 'Bank desk · DisputePro' }, [])
+  // Open on the next case the agents will take, not on one that is already done.
   const refresh = useCallback(async () => {
-    try { const d = await api<Ledger>('/api/bank/ledger'); setLedger(d); setSelected(s => s || d.cases[0]?.id || ''); setError('') }
+    try { const d = await api<Ledger>('/api/bank/ledger'); setLedger(d); setSelected(s => s || (d.cases.find(c => c.status==='QUEUED') || d.cases[0])?.id || ''); setError('') }
     catch (e) { setError((e as Error).message) }
   }, [])
   useEffect(() => { refresh(); const t=setInterval(refresh,1800); return () => clearInterval(t) },[refresh])
