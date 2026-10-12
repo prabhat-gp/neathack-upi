@@ -228,4 +228,17 @@ class BankTests(unittest.IsolatedAsyncioTestCase):
         finally:
             config.LLM_PROVIDER, config.LITELLM_API_KEY, llm._prices = old
 
+    def test_prompt_cache_marks_system_and_latest_turn_only(self):
+        from engine import llm
+        history=[{'role':'user','content':'case brief'},
+                 {'role':'assistant','content':[{'type':'tool_use','id':'t1','name':'x','input':{}}]},
+                 {'role':'user','content':[{'type':'tool_result','tool_use_id':'t1','content':'a'},
+                                           {'type':'tool_result','tool_use_id':'t2','content':'b'}]}]
+        system,sent=llm._cached('rules', history)
+        self.assertEqual(system[0]['cache_control'], {'type':'ephemeral'})
+        marks=[b for m in sent if isinstance(m['content'], list) for b in m['content'] if 'cache_control' in b]
+        self.assertEqual(marks, [sent[-1]['content'][-1]])
+        self.assertNotIn('cache_control', history[-1]['content'][-1])   # the kept history is never modified
+        self.assertEqual(llm._cached('rules', history[:1])[1][0]['content'][-1]['text'], 'case brief')
+
 if __name__=='__main__': unittest.main()
