@@ -65,14 +65,28 @@ class AgentError(Exception):
     pass
 
 
+_CACHE = {"type": "ephemeral"}
+
+
+def _cached(system: str, messages: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Prompt caching, the fix neatlogs' investigation suggested for our token incident: one breakpoint after the
+    tools + system prompt, one after the conversation so far, so each turn reads the earlier turns from cache
+    (a tenth of the input price) instead of paying for them again."""
+    last = messages[-1]
+    content = last["content"] if isinstance(last["content"], list) else [{"type": "text", "text": last["content"]}]
+    content = [*content[:-1], {**content[-1], "cache_control": _CACHE}]
+    return [{"type": "text", "text": system, "cache_control": _CACHE}], [*messages[:-1], {**last, "content": content}]
+
+
 async def _streamed_turn(run: Run, node: str, system: str, tools: list[Tool], messages: list[dict], turn: int):
     """One model call, streamed: reasoning text appears token by token, tool choices as the model makes them."""
     t0, t0_ns = time.monotonic(), time.time_ns()
     parent = tracing.current_context()
     tid = await run.step(node, "turn", f"Turn {turn}", model(), status="running")
     think_id = None
-    async with client().messages.stream(model=model(), max_tokens=2000, system=system,
-                                        tools=[t.spec() for t in tools], messages=messages) as stream:
+    system_blocks, sent = _cached(system, messages)
+    async with client().messages.stream(model=model(), max_tokens=2000, system=system_blocks,
+                                        tools=[t.spec() for t in tools], messages=sent) as stream:
         async for ev in stream:
             if ev.type == "text":
                 if think_id is None:
@@ -81,19 +95,22 @@ async def _streamed_turn(run: Run, node: str, system: str, tools: list[Tool], me
             elif ev.type == "content_block_start" and ev.content_block.type == "tool_use":
                 await run.step(node, "decision", f"Chose {ev.content_block.name}", None, status="info")
         resp = await stream.get_final_message()
-    cost = await _cost(resp.usage)
+    u = resp.usage
+    cached = getattr(u, "cache_read_input_tokens", 0) or 0
+    # Anthropic leaves cached tokens out of input_tokens; count the whole prompt so totals stay comparable.
+    prompt_tokens = u.input_tokens + cached + (getattr(u, "cache_creation_input_tokens", 0) or 0)
+    cost = await _cost(u)
     run.cost_usd = round((getattr(run, "cost_usd", 0) or 0) + cost, 6)
     said = "\n".join(b.text for b in resp.content if b.type == "text")
     calls = ", ".join(b.name for b in resp.content if b.type == "tool_use")
     tracing.llm_turn(parent, t0_ns, time.time_ns(), agent=node, turn=turn, model=model(),
                      prompt=system if turn == 1 else None, output=said or f"(tool calls: {calls})",
-                     input_tokens=resp.usage.input_tokens, output_tokens=resp.usage.output_tokens,
-                     cached=getattr(resp.usage, "cache_read_input_tokens", 0) or 0, reasoning=0,
+                     input_tokens=prompt_tokens, output_tokens=u.output_tokens, cached=cached, reasoning=0,
                      provider=config.brain(), runtime=f"anthropic-messages via {config.brain()}", cost_usd=cost)
     if think_id:
         await run.update(think_id, "ok")
-    await run.add_usage(node, resp.usage.input_tokens, resp.usage.output_tokens)
-    await run.update(tid, "ok", result=f"{time.monotonic() - t0:.1f}s · {resp.usage.input_tokens + resp.usage.output_tokens:,} tokens")
+    await run.add_usage(node, prompt_tokens, u.output_tokens)
+    await run.update(tid, "ok", result=f"{time.monotonic() - t0:.1f}s · {prompt_tokens + u.output_tokens:,} tokens")
     return resp
 
 
