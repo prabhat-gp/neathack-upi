@@ -23,7 +23,7 @@ class Run:
         self.usage: dict[str, dict] = {}
         self.calls: list[str] = []
         self.trace_url: str | None = None
-        self.cost_usd = 0.0  # stays 0 on a ChatGPT plan (usage is covered by the subscription, not billed per token)
+        self.cost_usd = 0.0  # LiteLLM reports the exact charge per call; stays 0 on a ChatGPT plan (Codex)
         self._seq = 0
 
     def ms(self) -> int:

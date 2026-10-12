@@ -1,10 +1,11 @@
-"""Tool-using agent loop on Claude (AWS Bedrock or Anthropic API)."""
+"""Tool-using agent loop on Claude: neatHack's LiteLLM proxy, AWS Bedrock or the Anthropic API."""
 
 import asyncio
 import json
 import time
 
 import config
+import tracing
 
 from .run import Run
 from .tools import Tool
@@ -17,7 +18,11 @@ def client():
     if _client is None:
         from anthropic import AsyncAnthropic, AsyncAnthropicBedrock
 
-        if config.brain() == "bedrock":
+        if config.brain() == "litellm":
+            # LiteLLM serves Anthropic's /v1/messages format; the team key goes as a Bearer token.
+            _client = AsyncAnthropic(auth_token=config.LITELLM_API_KEY, api_key=None, base_url=config.LITELLM_BASE_URL,
+                                     timeout=90, max_retries=2)
+        elif config.brain() == "bedrock":
             _client = AsyncAnthropicBedrock(aws_region=config.AWS_REGION)
         else:
             _client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
@@ -25,7 +30,35 @@ def client():
 
 
 def model() -> str:
-    return config.BEDROCK_MODEL_ID if config.brain() == "bedrock" else config.ANTHROPIC_MODEL
+    return {"litellm": config.LITELLM_MODEL, "bedrock": config.BEDROCK_MODEL_ID}.get(config.brain(), config.ANTHROPIC_MODEL)
+
+
+_prices: dict | None = None
+
+
+async def _price(model_name: str) -> dict:
+    """Per-token prices as LiteLLM itself bills them (/model/info), fetched once."""
+    global _prices
+    if _prices is None:
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=15) as c:
+                r = await c.get(f"{config.LITELLM_BASE_URL}/model/info", headers={"Authorization": f"Bearer {config.LITELLM_API_KEY}"})
+                _prices = {m["model_name"]: m.get("model_info") or {} for m in r.json()["data"]}
+        except Exception:
+            return {}   # cost unknown this time; try again on the next call
+    return _prices.get(model_name, {})
+
+
+async def _cost(usage) -> float:
+    """Streaming responses carry no cost header, so price the reported tokens with LiteLLM's own rates."""
+    if config.brain() != "litellm":
+        return 0.0
+    p = await _price(model())
+    return ((usage.input_tokens or 0) * (p.get("input_cost_per_token") or 0)
+            + (usage.output_tokens or 0) * (p.get("output_cost_per_token") or 0)
+            + (getattr(usage, "cache_read_input_tokens", 0) or 0) * (p.get("cache_read_input_token_cost") or 0)
+            + (getattr(usage, "cache_creation_input_tokens", 0) or 0) * (p.get("cache_creation_input_token_cost") or 0))
 
 
 class AgentError(Exception):
@@ -34,7 +67,8 @@ class AgentError(Exception):
 
 async def _streamed_turn(run: Run, node: str, system: str, tools: list[Tool], messages: list[dict], turn: int):
     """One model call, streamed: reasoning text appears token by token, tool choices as the model makes them."""
-    t0 = time.monotonic()
+    t0, t0_ns = time.monotonic(), time.time_ns()
+    parent = tracing.current_context()
     tid = await run.step(node, "turn", f"Turn {turn}", model(), status="running")
     think_id = None
     async with client().messages.stream(model=model(), max_tokens=2000, system=system,
@@ -47,6 +81,15 @@ async def _streamed_turn(run: Run, node: str, system: str, tools: list[Tool], me
             elif ev.type == "content_block_start" and ev.content_block.type == "tool_use":
                 await run.step(node, "decision", f"Chose {ev.content_block.name}", None, status="info")
         resp = await stream.get_final_message()
+    cost = await _cost(resp.usage)
+    run.cost_usd = round((getattr(run, "cost_usd", 0) or 0) + cost, 6)
+    said = "\n".join(b.text for b in resp.content if b.type == "text")
+    calls = ", ".join(b.name for b in resp.content if b.type == "tool_use")
+    tracing.llm_turn(parent, t0_ns, time.time_ns(), agent=node, turn=turn, model=model(),
+                     prompt=system if turn == 1 else None, output=said or f"(tool calls: {calls})",
+                     input_tokens=resp.usage.input_tokens, output_tokens=resp.usage.output_tokens,
+                     cached=getattr(resp.usage, "cache_read_input_tokens", 0) or 0, reasoning=0,
+                     provider=config.brain(), runtime=f"anthropic-messages via {config.brain()}", cost_usd=cost)
     if think_id:
         await run.update(think_id, "ok")
     await run.add_usage(node, resp.usage.input_tokens, resp.usage.output_tokens)

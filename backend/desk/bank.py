@@ -121,6 +121,26 @@ async def ledger_view():
             'brain': config.brain(), 'bank': db.OUR_BANK, 'target_seconds': 60, 'target_range': [60,90]}
 
 
+_spend_cache = {'at': 0.0, 'value': None}
+
+
+async def litellm_spend() -> float | None:
+    """What the shared LiteLLM key has spent (USD), cached for 30 s. None when not on LiteLLM or unreachable."""
+    if config.brain() != 'litellm':
+        return None
+    if time.monotonic() - _spend_cache['at'] < 30:
+        return _spend_cache['value']
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(f'{config.LITELLM_BASE_URL}/key/info', headers={'Authorization': f'Bearer {config.LITELLM_API_KEY}'})
+            value = float(r.json()['info']['spend'])
+    except Exception:
+        value = _spend_cache['value']
+    _spend_cache.update(at=time.monotonic(), value=value)
+    return value
+
+
 class QueueRequest(BaseModel):
     on: bool
 
@@ -129,6 +149,9 @@ class QueueRequest(BaseModel):
 async def queue(req: QueueRequest):
     await ensure_seed()
     if req.on and not STATE['enabled']:
+        spend = await litellm_spend()
+        if spend is not None and spend >= config.LITELLM_SPEND_CEILING:
+            raise HTTPException(429, 'The demo model budget is used up. Open a completed case to see how the agents resolved it.')
         now = time.monotonic()
         _batch_starts[:] = [t for t in _batch_starts if now - t < 3600]
         if len(_batch_starts) >= config.BANK_BATCHES_PER_HOUR:

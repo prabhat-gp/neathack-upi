@@ -30,6 +30,7 @@ class BankTests(unittest.IsolatedAsyncioTestCase):
         bank._work_lock = asyncio.Lock()
         bank.STATE.update(enabled=False, active_case_id=None, started_at=None)
         bank._batch_starts.clear()
+        bank._spend_cache.update(at=0.0, value=None)
         supervisor.RUNS.clear()
         self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app),base_url='http://test')
         self.old_client = parties._client
@@ -141,10 +142,12 @@ class BankTests(unittest.IsolatedAsyncioTestCase):
             for _ in range(3000):
                 if not bank.STATE['enabled'] and not bank.STATE['active_case_id']: break
                 await asyncio.sleep(.01)
+            import config
+            n=config.BANK_BATCH_SIZE
             done=[c['id'] for c in bank.cases() if c['status']!='QUEUED' and c['id'] not in ('BK-021','BK-022')]
-            self.assertEqual(done,['BK-001','BK-002','BK-003'])
+            self.assertEqual(done,[f'BK-{i:03d}' for i in range(1,n+1)])
             self.assertFalse(bank.STATE['enabled'])
-            self.assertEqual(store.get_case('BK-004')['status'],'QUEUED')
+            self.assertEqual(store.get_case(f'BK-{n+1:03d}')['status'],'QUEUED')
         finally:
             task.cancel()
             await asyncio.gather(task,return_exceptions=True)
@@ -197,5 +200,32 @@ class BankTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(o['status'],'ACTIONED')
         self.assertNotIn('Refunded', o['headline'])
         self.assertEqual(o['headline'],'No money moved · review needed')
+
+    async def test_spend_ceiling_blocks_new_runs(self):
+        import config
+        old=(config.LLM_PROVIDER, config.LITELLM_API_KEY)
+        config.LLM_PROVIDER, config.LITELLM_API_KEY = 'litellm', 'test-key'
+        bank._spend_cache.update(at=10**12, value=config.LITELLM_SPEND_CEILING + 0.01)
+        try:
+            r=await self.client.post('/api/bank/queue',json={'on':True})
+            self.assertEqual(r.status_code,429)
+            self.assertIn('budget',r.json()['detail'])
+            self.assertFalse(bank.STATE['enabled'])
+        finally:
+            config.LLM_PROVIDER, config.LITELLM_API_KEY = old
+            bank._spend_cache.update(at=0.0, value=None)
+
+    async def test_litellm_cost_uses_proxy_prices(self):
+        import config
+        from types import SimpleNamespace
+        from engine import llm
+        old=(config.LLM_PROVIDER, config.LITELLM_API_KEY, llm._prices)
+        config.LLM_PROVIDER, config.LITELLM_API_KEY = 'litellm', 'test-key'
+        llm._prices={config.LITELLM_MODEL:{'input_cost_per_token':3.3e-6,'output_cost_per_token':16.5e-6}}
+        try:
+            cost=await llm._cost(SimpleNamespace(input_tokens=10000, output_tokens=1000, cache_read_input_tokens=0, cache_creation_input_tokens=0))
+            self.assertAlmostEqual(cost, 0.033+0.0165, places=6)
+        finally:
+            config.LLM_PROVIDER, config.LITELLM_API_KEY, llm._prices = old
 
 if __name__=='__main__': unittest.main()

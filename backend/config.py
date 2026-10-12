@@ -17,12 +17,18 @@ _load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 PORT = int(os.environ.get("PORT", "8000"))
 
-# Agent brain: "bedrock" | "anthropic" | "rules" | "auto" (auto picks the first one with credentials).
+# Agent brain: "litellm" | "codex" | "bedrock" | "anthropic" | "rules" | "auto" (auto picks the first one with credentials).
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "auto").lower()
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5-5")
+# neatHack's LiteLLM proxy (Nova and Claude, one shared team key and budget). Spoken to in Anthropic's message format.
+LITELLM_API_KEY = os.environ.get("LITELLM_API_KEY", "")
+LITELLM_BASE_URL = os.environ.get("LITELLM_BASE_URL", "https://litellm.vision.aivar.app")
+LITELLM_MODEL = os.environ.get("LITELLM_MODEL", "claude-sonnet-4.6")
+# Stop starting new agent runs once the key has spent this much (USD), so a case never dies mid-run on an empty budget.
+LITELLM_SPEND_CEILING = float(os.environ.get("LITELLM_SPEND_CEILING", "17"))
 # OpenAI Codex CLI signed in with a ChatGPT plan (`codex login`): agents run on the plan's usage, no API key.
 CODEX_BIN = os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex"
 CODEX_HOME = os.environ.get("CODEX_HOME", os.path.expanduser("~/.codex"))
@@ -52,9 +58,9 @@ MCP_API_TOKEN = os.environ.get("MCP_API_TOKEN", "")
 AUTOPILOT_INTERVAL_SEC = int(os.environ.get("AUTOPILOT_INTERVAL_SEC", "120"))
 AUTOPILOT_MAX_COMPLAINTS = int(os.environ.get("AUTOPILOT_MAX_COMPLAINTS", "10"))
 # Bank desk: one "Run agents" press works this many ledger cases, then stops (protects the model plan).
-BANK_BATCH_SIZE = int(os.environ.get("BANK_BATCH_SIZE", "3"))
+BANK_BATCH_SIZE = int(os.environ.get("BANK_BATCH_SIZE", "1"))
 # Public demo guards. Run agents spends the model plan, so cap batches across all visitors.
-BANK_BATCHES_PER_HOUR = int(os.environ.get("BANK_BATCHES_PER_HOUR", "2"))
+BANK_BATCHES_PER_HOUR = int(os.environ.get("BANK_BATCHES_PER_HOUR", "6"))
 # Ledger reset is operator-only when set (send it as the X-Operator-Token header).
 OPERATOR_TOKEN = os.environ.get("OPERATOR_TOKEN", "")
 
@@ -68,6 +74,8 @@ NEATLOGS_PROJECT_ID = os.environ.get("NEATLOGS_PROJECT_ID", "")
 def brain() -> str:
     has_aws = bool(BEDROCK_MODEL_ID and (os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_PROFILE")))
     if LLM_PROVIDER == "auto":
+        if LITELLM_API_KEY:
+            return "litellm"
         if codex_signed_in():
             return "codex"
         if has_aws:
@@ -80,6 +88,7 @@ def brain() -> str:
 
 def brain_label() -> str:
     return {
+        "litellm": f"{LITELLM_MODEL} via LiteLLM · neatHack model access",
         "codex": f"OpenAI {CODEX_MODEL} via Codex · ChatGPT plan",
         "bedrock": f"Claude on AWS Bedrock · {BEDROCK_MODEL_ID}",
         "anthropic": f"Claude · {ANTHROPIC_MODEL}",
@@ -88,7 +97,7 @@ def brain_label() -> str:
 
 
 def model_name() -> str | None:
-    return {"codex": CODEX_MODEL, "bedrock": BEDROCK_MODEL_ID, "anthropic": ANTHROPIC_MODEL}.get(brain())
+    return {"litellm": LITELLM_MODEL, "codex": CODEX_MODEL, "bedrock": BEDROCK_MODEL_ID, "anthropic": ANTHROPIC_MODEL}.get(brain())
 
 # Server-only company research; never exposed in client assets or evidence files.
 CRUSTDATA_API_KEY = os.environ.get("CRUSTDATA_API_KEY", "")

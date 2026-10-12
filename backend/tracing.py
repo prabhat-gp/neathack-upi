@@ -104,20 +104,23 @@ def finish(s, output=None, error: str | None = None) -> None:
 
 
 def llm_turn(parent, start_ns: int, end_ns: int, *, agent: str, turn: int, model: str, prompt: str | None,
-             output: str, input_tokens: int, output_tokens: int, cached: int, reasoning: int) -> None:
-    """One Codex turn as an LLM span with real timing and the usage Codex reported."""
+             output: str, input_tokens: int, output_tokens: int, cached: int, reasoning: int,
+             provider: str = "openai", runtime: str = "codex-cli", cost_usd: float | None = None) -> None:
+    """One model turn as an LLM span with real timing and the usage the runtime reported (Codex or LiteLLM)."""
     if not ENABLED:
         return
     with _under(parent):
         s = _tracer().start_span(f"{agent} · turn {turn}", start_time=start_ns)
     for k, v in {
-        "openinference.span.kind": "LLM", "llm.system": "openai", "llm.provider": "openai", "gen_ai.system": "openai",
+        "openinference.span.kind": "LLM", "llm.system": "anthropic" if provider != "openai" else "openai",
+        "llm.provider": provider, "gen_ai.system": "anthropic" if provider != "openai" else "openai",
         "llm.model_name": model, "gen_ai.request.model": model,
-        "llm.invocation_parameters": json.dumps({"reasoning_effort": config.CODEX_REASONING_EFFORT, "runtime": "codex-cli"}),
+        "llm.invocation_parameters": json.dumps({"runtime": runtime} | ({"reasoning_effort": config.CODEX_REASONING_EFFORT} if runtime == "codex-cli" else {})),
         "llm.token_count.prompt": input_tokens, "llm.token_count.completion": output_tokens,
         "llm.token_count.total": input_tokens + output_tokens, "llm.token_count.prompt_details.cache_read": cached,
         "llm.token_count.completion_details.reasoning": reasoning,
-        "input.value": prompt or "(continuation of the same Codex session)", "output.value": output or "(tool calls only)",
+        "input.value": prompt or "(continuation of the same agent conversation)", "output.value": output or "(tool calls only)",
+        **({"llm.cost.total": cost_usd} if cost_usd is not None else {}),
     }.items():
         s.set_attribute(k, v)
     s.end(end_time=end_ns)
