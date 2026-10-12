@@ -10,8 +10,8 @@ type Chain = { remitter: string; receiver: string; failure_at: string; reason: s
 type Audit = { status: string; rule: string; reason: string; checks: string[]; tat?: string; deadline_at?: string; compensation_paise: number; checked_at: string }
 type Result = Outcome & { governance?: Audit; chain?: Chain; trace_url?: string }
 type Ledger = { cases: (DeskCase & { outcome?: Result })[]; counts: Record<string, number>; queue: { enabled: boolean; active_case_id: string | null; started_at: string | null; batch_left: number; batch_size: number }; model: string; brain: string; bank: string }
-// neatlogs opens a trace a minute or two after the case ends; before that its page says "Trace not found".
-const TRACE_INDEX_S = 180
+// neatlogs opens a trace a few seconds after the case ends (measured ~8 s); before that its page says "Trace not found".
+const TRACE_INDEX_S = 30
 const filters = [['all', 'All cases'], ['approval', 'Approval'], ['investigate', 'Investigate'], ['completed', 'Completed']]
 const labels: Record<string,string> = { QUEUED: 'Queued', WORKING: 'Agents working', NEEDS_YOU: 'Human approval', RESOLVED: 'Completed', ESCALATED: 'Investigate', FAILED: 'Investigate', NEEDS_INFO: 'Investigate' }
 const agents: { id: NodeId; title: string; task: string; number: string }[] = [
