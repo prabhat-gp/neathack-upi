@@ -7,6 +7,7 @@ import hmac
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 import config
+import tracing
 from sandbox import db
 from engine.run import Run
 from engine.bank_workflow import orchestrate_bank
@@ -89,6 +90,7 @@ async def drive(run, work):
     finally:
         persist(run)
         run.close()
+        await asyncio.to_thread(tracing.flush)
 
 
 async def ensure_seed():

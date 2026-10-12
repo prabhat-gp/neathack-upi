@@ -53,6 +53,14 @@ def trace_url() -> str | None:
             f"?orgId={config.NEATLOGS_ORG_ID}&projectId={config.NEATLOGS_PROJECT_ID}")
 
 
+
+def flush() -> None:
+    """Send the finished case's spans now instead of on the SDK's 5 s timer, so neatlogs can index it sooner."""
+    if ENABLED:
+        import neatlogs
+
+        neatlogs.flush(timeout_millis=5000)
+
 def current_context():
     if not ENABLED:
         return None
