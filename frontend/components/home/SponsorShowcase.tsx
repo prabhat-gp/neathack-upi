@@ -35,13 +35,13 @@ const SPONSORS: Sponsor[] = [
     id: 'entire', name: 'Entire', mark: 'E', role: 'Build provenance', source: 'entire.io',
     headline: 'Entire links every change to the AI session that wrote it.',
     stats: [
-      ['37', 'checkpoints across 43 commits, each tied to the Codex or Claude Code session behind it.'],
+      ['39', 'checkpoints across 45 commits by the evening of 12 October, each tied to its Codex or Claude Code session.'],
       ['3.1M', 'tokens of AI build work recorded, from the first sandbox bank to the final fix.'],
       ['b30b9d2', 'the neatlogs fix, traced to its 2 sessions: +20 lines of code and +13 of tests.'],
     ],
     shots: [
       { src: '/proof/sponsors/entire-commit.webp', caption: 'The prompt-caching fix on Entire: its checkpoint, the Claude Code and Codex sessions behind it, and what it changed.' },
-      { src: '/proof/sponsors/entire-analytics.webp', caption: 'Entire Analytics for the repository: 37 checkpoints in 43 commits and 3.1M tokens of AI work.' },
+      { src: '/proof/sponsors/entire-analytics.webp', caption: 'Entire Analytics for the repository on 12 October: 39 checkpoints in 45 commits and 3.1M tokens of AI work.' },
     ],
     cta: { href: `https://entire.io/gh/prabhat-gp/neathack-upi/commit/${FIX_COMMIT}`, label: 'Open the fix on Entire' },
   },
@@ -50,14 +50,15 @@ const SPONSORS: Sponsor[] = [
     headline: 'cfo.ai turned our measured agent cost into a 12-month plan for banks.',
     stats: [
       ['₹10', 'agent cost per case in the base plan, from the live desk ($0.103), not a guess.'],
-      ['₹23.25 lakh', 'revenue in the first 12 months, reaching 3 banks by September 2027.'],
+      ['₹23.25 lakh', 'revenue in the first 12 months from 3 banks, at ₹1 lakh a month with 1,000 cases included.'],
       ['60.4%', 'recurring gross margin, with the ₹32 lakh funding gap shown rather than hidden.'],
     ],
     shots: [
       { src: '/proof/sponsors/cfo-plan.webp', caption: 'The DisputePro Business Plan in cfo.ai: revenue, banks and cash, October 2026 to September 2027.' },
       { src: '/proof/sponsors/cfo-measured.webp', caption: 'The plan records the 12 October cost update: Claude Sonnet with prompt caching, $0.103 a case.' },
     ],
-    cta: { href: '/evidence#cfo', label: 'Read the forecast' },
+    cta: { href: 'https://cfo.ai/s/CRMsGa9CnYduMy2H', label: 'Open the plan in cfo.ai' },
+    more: { href: '/evidence#cfo', label: 'Read the forecast' },
     note: 'Forecast values are planning assumptions, not revenue.',
   },
   {
