@@ -42,9 +42,9 @@ export default function Evidence() {
       </section>
 
       <section id="cfo" className="mt-16 border-t border-slate-200 pt-12">
-        <p className="text-xs font-semibold uppercase tracking-[.16em] text-blue-600">cfo.ai · forecast captured 10 October · workspace checked 11 October</p>
+        <p className="text-xs font-semibold uppercase tracking-[.16em] text-blue-600">cfo.ai · forecast captured 10 October · agent cost updated 12 October</p>
         <h2 className="mt-4 font-display text-4xl font-semibold tracking-tight">A business plan you can inspect.</h2>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">Twelve monthly periods, editable assumptions and three scenarios in the upi-dispute workspace. These are planning outputs, not actual revenue. The model includes a one-month collection delay and keeps negative cash visible.</p>
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">Twelve monthly periods, editable assumptions and three scenarios in the upi-dispute workspace. These are planning outputs, not actual revenue. The model includes a one-month collection delay and keeps negative cash visible. Base agent cost is ₹10 per case, measured on the deployed desk ($0.103 with prompt caching), up from an ₹8 guess.</p>
         <p className="mt-4 text-sm text-slate-500">New payment runs do not recalculate this business forecast or rerun Crustdata research. These are separately dated sponsor artifacts.</p>
         <a href="https://app.cfo.ai/s/p_AQGApQYkYTczYzQ3ZDQtNzhhOS00ZjJhLWEwZDAtNWE4YzgwZDU0NmE3DWRlZmF1bHRfbGF5ZXI" target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm font-medium text-blue-600">Open the native cfo.ai business plan ↗</a>
         <div className="mt-6 grid gap-5 md:grid-cols-3">{Object.entries(forecast).map(([name, result]) => {

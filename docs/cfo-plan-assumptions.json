@@ -9,7 +9,7 @@
     "Cases per bank per month": 1500,
     "Onboarding fee INR": 200000,
     "Onboarding cost INR": 100000,
-    "Model cost per case INR": 8,
+    "Model cost per case INR": 10,
     "Infrastructure per case INR": 2,
     "Review fraction": 0.1,
     "Minutes per review": 5,
@@ -22,5 +22,18 @@
     "Starting cash assumption INR": 5000000,
     "Pilot launch month": 4,
     "Months between new banks": 4
+  },
+  "measured_model_cost": {
+    "date": "2026-10-12",
+    "model": "claude-sonnet-4.6 via LiteLLM with prompt caching",
+    "deployed_usd_per_case": {
+      "T01 cached": 0.103,
+      "T02 before caching": 0.132
+    },
+    "local_usd_per_case": [
+      0.108,
+      0.114
+    ],
+    "note": "About 9-10 INR per case at 88 INR/USD; Base uses 10. Downside (20) and Upside (6) are scenario overrides."
   }
 }
