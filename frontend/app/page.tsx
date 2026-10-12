@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Icon } from '@/components/meta'
 import SquadHero from '@/components/home/SquadHero'
 import ProofGallery from '@/components/home/ProofGallery'
-import ExposureCalculator from '@/components/home/ExposureCalculator'
+import SponsorShowcase from '@/components/home/SponsorShowcase'
 
 const AGENTS = [
   ['orchestrator', 'Master agent', 'Picks the next failed payment from the ledger and coordinates three specialists, one case at a time.'],
@@ -11,20 +11,22 @@ const AGENTS = [
   ['resolver', 'Resolver', 'Assesses risk and recommends the next action, with evidence for the reviewer.'],
 ]
 const PRODUCT_PROOF = [
-  { src: '/proof/bank-desk-oct11.png', title: 'The product · A bank desk built around agents', caption: 'The failed-payment ledger, the payment chain, a master agent with three specialists, and RBI governance with the outcome side by side.' },
-  { src: '/proof/bank-resolution-oct11.png', title: 'The outcome · A human stays in control', caption: 'A ₹11,200 refund above the auto-approval limit: the RBI policy gate passed, and the proposed actions wait for a reviewer before any money moves.' },
+  { src: '/proof/desk-t02-oct12.webp', title: 'The product · T02 resolved on the live desk', caption: 'The deployed desk on 12 October: the agents located an NPCI routing timeout and refunded ₹1,800 in 37 seconds, with 1 day 7 hours to spare before the T+1 deadline.' },
+  { src: '/proof/desk-t21-approval-oct12.webp', title: 'The outcome · A human stays in control', caption: 'T21 needs a ₹12,600 payout, above the ₹10,000 auto-approval limit. The RBI gate has passed, but no money moves until a reviewer approves.' },
 ]
-const SPONSOR_PROOF = [
-  { src: '/proof/neatlogs-trace.png', title: 'neatlogs · Inspect the actual agent work', caption: 'A recorded investigation trace exposes model calls, tool responses and token usage. Live cases link to their own trace when available.' },
-  { src: '/proof/entire-checkpoint.png', title: 'Entire · Follow the build back to its session', caption: 'A genuine development checkpoint connects an AI session with its code changes. Build evidence, separate from payment evidence.' },
-  { src: '/proof/cfo-model.jpg', title: 'cfo.ai · A business model beyond the demo', caption: 'The native workspace contains a 12-month operating plan and base, downside and upside scenarios. Forecast assumptions are labelled.' },
-  { src: '/proof/crustdata-research.png', title: 'Crustdata · Research with the source attached', caption: 'Actual company-identification responses support bank-market research. Ambiguous matches stay visible; company data is never treated as payment proof.' },
-]
-const SPONSORS = [
-  ['neatlogs', 'Agent observability', 'Connected', 'See what each agent did, which tools it called and where a run slowed down.'],
-  ['Entire', 'Build history', 'Connected', 'Follow the AI sessions, checkpoints and commits that shaped the product.'],
-  ['cfo.ai', 'Business planning', 'Model verified', 'An editable 12-month model with pricing, delivery costs, cash flow and three scenarios.'],
-  ['Crustdata', 'Company intelligence', 'API verified', 'Live company research feeds the business plan. Ambiguous matches stay visible for review.'],
+const GITHUB = 'https://github.com/prabhat-gp/neathack-upi'
+const FIX_COMMIT = 'b30b9d27d1cb7f8a792b10579503b0f7582c7d10'
+// Each row links to proof a judge can open: the live desk, public pages, the public repo, or a saved copy where the
+// sponsor page needs a login.
+const PROOF_ROWS = [
+  ['Live', 'The agents resolve real cases', 'T02 resolved on the deployed desk in 37.7 s.', 'Open the bank desk', '/console'],
+  ['Screenshot', 'neatlogs found a real incident', '90 model calls over 100,000 tokens, traced to our Codex loop.', 'The investigation', '/proof/sponsors/neatlogs-investigation.webp'],
+  ['Public', 'We shipped the fix neatlogs suggested', 'Prompt caching with a test: $0.132 down to $0.103 a case.', 'b30b9d2', `${GITHUB}/commit/${FIX_COMMIT}`],
+  ['Public', 'Entire recorded the build', '37 checkpoints across 43 commits, linked to their sessions.', 'The fix on Entire', `https://entire.io/gh/prabhat-gp/neathack-upi/commit/${FIX_COMMIT}`],
+  ['Saved', 'cfo.ai priced the business', 'The base plan runs on the measured ₹10 a case.', 'The forecast', '/evidence#cfo'],
+  ['Saved', 'Crustdata picked the first bank', 'AU Small Finance Bank, 10,001+ employees.', 'The API results', '/evidence#crustdata'],
+  ['Public', 'Tested, not just demoed', '30 backend tests: approvals, duplicates, policy before money moves.', 'The tests', `${GITHUB}/tree/main/backend/tests`],
+  ['Public', 'Built at neatHack', 'First commit 10 October, 11:18 IST. All of the code is public.', 'aa8f7b5', `${GITHUB}/commit/aa8f7b5`],
 ]
 function Actions() {
   return <div className="flex flex-wrap gap-3">
@@ -45,16 +47,17 @@ export default function Home() {
         <main>
           <section className="home-container relative grid items-center gap-12 py-14 lg:grid-cols-2 lg:gap-16 lg:py-20">
             <div className="home-enter">
-              <p className="home-eyebrow text-blue-300">Our mission · faster recovery for banks</p>
-              <h1 className="mt-5 font-display text-[clamp(2.8rem,5.5vw,4.8rem)] font-semibold leading-[1.05] tracking-[-.045em]">Resolve failed UPI transactions.<br /><span className="text-blue-300">Target: under 60 seconds.</span></h1>
+              <a href="#sponsors" className="home-built-badge"><span aria-hidden="true">★</span> Built at neatHack 2026</a>
+              <p className="home-eyebrow mt-6 text-blue-300">Our mission · faster recovery for banks</p>
+              <h1 className="mt-5 font-display text-[clamp(2.8rem,5.5vw,4.8rem)] font-semibold leading-[1.05] tracking-[-.045em]">Resolve failed UPI transactions.<br /><span className="text-blue-300">In under a minute.</span></h1>
               <p className="mt-6 max-w-lg text-base leading-8 text-slate-300">Turn a stuck payment into a verified resolution. AI agents trace the failure, apply RBI rules and carry out eligible recovery actions—with your team in control of approvals.</p>
               <div className="mt-8"><Actions /></div>
-              <p className="mt-5 text-xs leading-6 text-slate-400">Under 60 seconds is our goal. Deployed gpt-6.1-sol sandbox runs captured on 11 October: 86.7–101.5 seconds. Human review and external responses can take longer.</p>
+              <p className="mt-5 text-xs leading-6 text-slate-400">Measured on the live desk on 12 October: 36.8–45.3 seconds a case with Claude Sonnet 4.6. Cases held for human approval take longer.</p>
               <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-5 text-xs text-slate-400"><span>Evidence behind decisions</span><span>Human approval when needed</span><span>Sandbox demo</span></div>
             </div>
             <SquadHero />
           </section>
-          <div className="home-container grid grid-cols-2 gap-6 border-t border-white/10 py-8 md:grid-cols-4">{[['22','seeded ledger cases'],['1 + 3','master + specialists'],['<60s','our resolution target'],['RBI','mandatory policy gate']].map(([v,l])=><div key={v}><strong className="font-display text-2xl font-semibold">{v}</strong><p className="mt-2 text-xs text-slate-400">{l}</p></div>)}</div>
+          <div className="home-container grid grid-cols-2 gap-6 border-t border-white/10 py-8 md:grid-cols-4">{[['22','seeded ledger cases'],['1 + 3','master + specialists'],['37.7s','T02 on the live desk'],['RBI','mandatory policy gate']].map(([v,l])=><div key={v}><strong className="font-display text-2xl font-semibold">{v}</strong><p className="mt-2 text-xs text-slate-400">{l}</p></div>)}</div>
         </main>
       </div>
 
@@ -74,7 +77,6 @@ export default function Home() {
             <article><div><span>PAYMENT TO MERCHANT · P2M</span><strong>T+5</strong></div><h3>Debited. Merchant unconfirmed.</h3><p>For a UPI merchant payment where the account is debited but confirmation does not reach the merchant, the auto-reversal deadline is T+5.</p><footer><b>₹100 per day</b><span>for delay beyond T+5</span></footer></article>
           </div>
           <p className="home-policy-source">T is the calendar date of the transaction. Eligible compensation must be credited automatically, without waiting for a customer complaint. This is customer compensation under RBI’s framework, not a flat fine on every failed attempt. <a href="https://rbi.org.in/commonman/English/scripts/Notification.aspx?Id=3074" target="_blank" rel="noreferrer">Read the RBI circular · UPI rows 4(a) and 4(b) ↗</a></p>
-          <ExposureCalculator />
           <div className="home-agent-value"><Icon name="policy"/><p><strong>Speed is useful. Governed speed is the product.</strong> Agents collect the evidence and prepare the remedy. Mandatory policy checks, fresh ledger verification and approval limits decide what can execute.</p></div>
         </div>
       </section>
@@ -93,16 +95,22 @@ export default function Home() {
 
       <section id="sponsors" className="home-section bg-[#0b1426] text-white">
         <div className="home-container">
-          <div className="home-section-heading"><div><p className="home-eyebrow text-blue-300">Built at neatHack</p><h2>An agentic AI solution.<br />Built at neatHack.</h2></div><p className="!text-slate-400">Thank you to the sponsors for helping us turn a difficult banking problem into a better solution. Your tools made the agents observable, the build traceable and the business plan more grounded.</p></div>
-          <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{SPONSORS.map(([name, role, status, copy]) => <article key={name} className="rounded-2xl border border-white/10 bg-white/[.03] p-5"><p className="text-xs text-slate-400">{role}</p><h3 className="mt-3 font-display text-2xl font-semibold">{name}</h3><span className={`mt-4 inline-block rounded-full px-2.5 py-1 text-xs ${['Connected', 'Model verified', 'API verified'].includes(status) ? 'bg-emerald-400/10 text-emerald-300' : 'bg-amber-400/10 text-amber-200'}`}>{status}</span><p className="mt-4 text-sm leading-6 text-slate-400">{copy}</p>{<Link href={`/evidence#${name === 'cfo.ai' ? 'cfo' : name.toLowerCase()}`} className="mt-5 inline-block text-sm font-medium text-blue-300">Inspect verified work ↗</Link>}</article>)}</div>
-          <div id="sponsor-proof" className="mt-12 border-t border-white/10 pt-10">
-            <div className="home-section-heading"><div><p className="home-eyebrow text-blue-300">Proof of sponsors in DisputePro</p><h2>Each sponsor, at work<br />in this project.</h2></div><p className="!text-slate-400">Recorded sponsor captures, plus our rendering of the Crustdata API response. Screenshots document earlier work; dated evidence and deployed run links below show what each capture proves.</p></div>
-            <ProofGallery images={SPONSOR_PROOF} />
-            <div className="home-proof-links"><Link href="/evidence#neatlogs">Inspect deployed agent traces ↗</Link><Link href="/evidence#cfo">Inspect the cfo.ai model ↗</Link><Link href="/evidence#crustdata">Read the Crustdata responses ↗</Link><a href="https://entire.io/gh/prabhat-gp/neathack-upi/trails/1" target="_blank" rel="noreferrer">Follow the Entire review trail ↗</a></div>
+          <div className="home-section-heading"><div><p className="home-eyebrow text-blue-300">Built at neatHack 2026</p><h2>Four sponsor tools.<br />Four decisions they changed.</h2></div><p className="!text-slate-400">Not logos on a slide. neatlogs found a real incident in our agents, Entire recorded how we fixed it, cfo.ai priced the business on what a case really costs, and Crustdata picked the first bank to pitch. Thank you to all four.</p></div>
+          <SponsorShowcase />
+          <div id="proof-rows" className="mt-16 border-t border-white/10 pt-12">
+            <div className="home-section-heading"><div><p className="home-eyebrow text-blue-300">For judges</p><h2>Eight claims.<br />Each one opens to proof.</h2></div><p className="!text-slate-400"><b className="font-semibold text-slate-200">Live</b> is the running product, <b className="font-semibold text-slate-200">Public</b> opens without a login, <b className="font-semibold text-slate-200">Saved</b> is our copy of a sponsor result, and a <b className="font-semibold text-slate-200">Screenshot</b> stands in where the sponsor page needs a login.</p></div>
+            <ol className="proof-rows">{PROOF_ROWS.map(([kind, title, fact, label, href], i) => (
+              <li key={title}>
+                <span className="proof-check" aria-hidden="true">✓</span>
+                <div><h3><span>{i + 1}</span>{title}</h3><p>{fact}</p></div>
+                <span className={`proof-kind proof-kind-${kind.toLowerCase()}`}>{kind}</span>
+                <a href={href} {...(href.startsWith('http') || href.endsWith('.webp') ? { target: '_blank', rel: 'noreferrer' } : {})}>{label} <span aria-hidden="true">{href.startsWith('/') && !href.endsWith('.webp') ? '→' : '↗'}</span></a>
+              </li>
+            ))}</ol>
           </div>
           <div id="product-proof" className="mt-12 border-t border-white/10 pt-10">
-            <div className="home-section-heading"><div><p className="home-eyebrow text-blue-300">Build evidence · updated 11 October 2026</p><h2>See what works.<br />Inspect what proves it.</h2></div><p className="!text-slate-400">The latest bank desk and a recorded resolution, with the measured numbers behind them. Screenshots open here, so you can inspect the details without losing your place.</p></div>
-            <div className="home-proof-metrics">{[['27','backend tests passed','Includes approvals, duplicate protection and changed-evidence holds.'],['101.5s','latest captured deployed run','T05 · gpt-6.1-sol · 11 October. Under 60 seconds remains the goal.'],['5','completed deployed model runs','Captured on 11 October; rules-only verifier fixtures excluded. Inspect each trace in sponsor evidence.']].map(([v,title,copy])=><div key={v}><strong>{v}</strong><h3>{title}</h3><p>{copy}</p></div>)}</div>
+            <div className="home-section-heading"><div><p className="home-eyebrow text-blue-300">Build evidence · 12 October 2026</p><h2>See what works.<br />Inspect what proves it.</h2></div><p className="!text-slate-400">The live bank desk on 12 October, a resolved case and a case held for approval, with the measured numbers behind them. Screenshots open here, so you can inspect the details without losing your place.</p></div>
+            <div className="home-proof-metrics">{[['30','backend tests passed','Includes approvals, duplicate protection, prompt caching and changed-evidence holds.'],['37.7s','T02 on the live desk','Claude Sonnet 4.6 · 12 October · 25 steps traced in neatlogs.'],['$0.103','model cost per case','With prompt caching, measured on the deployed desk. $0.132 before the fix.']].map(([v,title,copy])=><div key={v}><strong>{v}</strong><h3>{title}</h3><p>{copy}</p></div>)}</div>
             <ProofGallery images={PRODUCT_PROOF} />
             <p className="mt-5 text-xs leading-6 text-slate-400">Model runs use sandbox bank and network adapters. Business forecasts are assumptions, not measured revenue. Sponsor research and build history are separate from transaction evidence.</p>
           </div>
